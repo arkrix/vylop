@@ -36,7 +36,7 @@ public class EditorController {
         messagingTemplate.convertAndSend("/topic/code/" + roomId, message);
     }
 
-    // --- FIXED: Accept raw String to prevent Jackson JSON corruption ---
+    //FIXED: Accept raw String to prevent Jackson JSON corruption
     @MessageMapping("/yjs/{roomId}")
     public void sendYjsUpdate(@DestinationVariable String roomId, @Payload String payload) {
         // Relaying the exact raw JSON string skips any Java Map/Object conversion errors

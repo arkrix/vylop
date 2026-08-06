@@ -13,7 +13,7 @@ public class ChatMessage {
     public ChatMessage(String sender, String content) {
         this.sender = sender;
         this.content = content;
-        // Formats time as "HH:mm" (e.g., "14:30")
+        // Formats time as "HH:mm"
         this.timestamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 

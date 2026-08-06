@@ -16,8 +16,6 @@ import { Awareness } from 'y-protocols/awareness';
 import Client from './Client';
 import FileExplorer, { getFileIcon } from './FileExplorer';
 import './CodeEditor.css'; 
-
-// NEW IMPORTS FOR THE SUBMISSION ENGINE!
 import SubmissionReport from './SubmissionReport';
 import { evaluateSubmission } from '../services/evaluationService';
 
@@ -35,7 +33,7 @@ const CODE_SNIPPETS = {
     markdown: `# Welcome to Vylop!\n\nStart writing your markdown here...\n\n- Real-time collaboration\n- Live preview\n- Awesome features` 
 };
 
-// ─── UPGRADED MOCK PROBLEM DATABASE (WITH TEST CASES) ──────────────────────
+//UPGRADED MOCK PROBLEM DATABASE (WITH TEST CASES)
 const MOCK_PROBLEMS = {
     "two-sum": {
         id: "two-sum",
@@ -181,7 +179,7 @@ const resolveFileName = (rawFile, files) => {
     return match || rawFile;
 };
 
-// ─── Error Parsers ────────────────────────────────────────────────────────
+//Error Parsers
 const parseJavaErrors = (output, files) => {
     const errors = [];
     const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
@@ -1384,7 +1382,7 @@ const CodeEditor = () => {
         }
     };
 
-    // ─── NEW FRONTEND SUBMISSION ENGINE ───
+    //NEW FRONTEND SUBMISSION ENGINE
     const handleSubmit = async () => {
         if (!activeFile || !currentProblem) return;
 
@@ -1565,7 +1563,7 @@ const CodeEditor = () => {
     return (
         <div className="app-container">
 
-            {/* ─── QUESTION BANK MODAL ─── */}
+            {/*QUESTION BANK MODAL*/}
             {isQuestionBankOpen && isHost && (
                 <div className="modal-overlay" style={{ zIndex: 3000 }}>
                     <div className="custom-modal" style={{ width: '700px', maxWidth: '95%' }}>
@@ -1659,7 +1657,7 @@ const CodeEditor = () => {
                 </div>
             )}
 
-            {/* ─── LEAVE CONFIRMATION MODAL ─── */}
+            {/*LEAVE CONFIRMATION MODAL*/}
             {isLeaveModalOpen && (
                 <div className="modal-overlay" style={{ zIndex: 2000 }}>
                     <div className="custom-modal" style={{ width: '420px' }}>
@@ -1696,7 +1694,7 @@ const CodeEditor = () => {
                 </div>
             )}
 
-            {/* ─── SECRETS MODAL ─── */}
+            {/*SECRETS MODAL*/}
             {isSecretsModalOpen && (
                 <div className="modal-overlay">
                     <div className="custom-modal" style={{ width: '450px' }}>
@@ -1770,7 +1768,7 @@ const CodeEditor = () => {
                 </div>
             )}
 
-            {/* ─── ADD FILE MODAL ─── */}
+            {/*ADD FILE MODAL*/}
             {isModalOpen && (
                 <div className="modal-overlay">
                     <div className="custom-modal">
@@ -1847,7 +1845,7 @@ const CodeEditor = () => {
                 </div>
             )}
 
-            {/* ─── DELETE FILE MODAL ─── */}
+            {/*DELETE FILE MODAL*/}
             {isDeleteModalOpen && (
                 <div className="modal-overlay">
                     <div className="custom-modal">
@@ -1864,7 +1862,7 @@ const CodeEditor = () => {
                 </div>
             )}
 
-            {/* ─── SIDEBAR ─── */}
+            {/*SIDEBAR*/}
             <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div className="sidebar-header" style={{ flexShrink: 0 }}>
                     <div className="brand-logo">
@@ -2004,7 +2002,7 @@ const CodeEditor = () => {
                 </div>
             </div>
 
-            {/* ─── MAIN AREA ─── */}
+            {/*MAIN AREA*/}
             <div className="main-area">
                 
                 {/* TOOLBAR */}
@@ -2133,7 +2131,7 @@ const CodeEditor = () => {
                             )}
                         </button>
 
-                        {/* ─── NEW SUBMIT BUTTON ─── */}
+                        {/*  NEW SUBMIT BUTTON  */}
                         {currentProblem && (
                             <button 
                                 className="btn btn-primary" 
@@ -2184,7 +2182,7 @@ const CodeEditor = () => {
                 ) : (
                     <Split key={splitKey} className={`editor-split ${splitDirection}`} sizes={splitSizes} minSize={250} gutterSize={8} direction={splitDirection}>
                         
-                        {/* ─── PROBLEM DESCRIPTION PANEL ─── */}
+                        {/*  PROBLEM DESCRIPTION PANEL  */}
                         {currentProblem && (
                             <div className="problem-wrapper" style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', height: '100%', overflowY: 'auto', padding: '20px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
@@ -2228,7 +2226,7 @@ const CodeEditor = () => {
                             </div>
                         )}
 
-                        {/* ─── EDITOR PANEL ─── */}
+                        {/*  EDITOR PANEL  */}
                         <div className="editor-wrapper" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
                             {showMarkdownPreview && files[activeFile]?.language === "markdown" ? (
                                 <Split className="markdown-split" sizes={[50, 50]} minSize={100} gutterSize={8} direction="horizontal" style={{ display: 'flex', flex: 1 }}>
@@ -2288,7 +2286,7 @@ const CodeEditor = () => {
                             )}
                         </div>
 
-                        {/* ─── LEETCODE-STYLE TABBED BOTTOM PANEL ─── */}
+                        {/*  LEETCODE-STYLE TABBED BOTTOM PANEL  */}
                         <div className="io-wrapper" style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
                             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', backgroundColor: '#161b22', padding: '0 10px' }}>
                                 {currentProblem && (

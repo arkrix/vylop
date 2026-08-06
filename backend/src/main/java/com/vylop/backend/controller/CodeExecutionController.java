@@ -22,7 +22,7 @@ public class CodeExecutionController {
     // Stores the IP address and the timestamp of their last execution
     private final Map<String, Long> requestCounts = new ConcurrentHashMap<>();
     
-    // Cooldown period in milliseconds (3000ms = 3 seconds)
+    // Cooldown period in milliseconds
     private static final long COOLDOWN_TIME = 3000;
 
     @PostMapping
@@ -53,7 +53,7 @@ public class CodeExecutionController {
         @SuppressWarnings("unchecked")
         Map<String, String> files = (Map<String, String>) payload.get("files");
 
-        // --- NEW: Extract Environment Secrets ---
+        //NEW: Extract Environment Secrets
         @SuppressWarnings("unchecked")
         Map<String, String> envVars = (Map<String, String>) payload.get("envVars");
         

@@ -10,6 +10,6 @@ import java.util.UUID;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, UUID> {
     
-    // NEW: Finds all rooms hosted by a specific user, sorted newest first!
+    // NEW: Finds all rooms hosted by a specific user, sorted newest first
     List<Room> findByHostUsernameOrderByCreatedAtDesc(String username);
 }

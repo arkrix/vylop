@@ -24,7 +24,7 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // This magically sets the timestamp the moment a user is created
+    // This sets the timestamp the moment a user is created
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -39,7 +39,6 @@ public class User {
         this.password = password;
     }
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

@@ -4,7 +4,7 @@ import java.util.List;
 
 public class UserMessage {
     private String username;
-    // CHANGED: From List<String> to List<RoomParticipant>
+    // update: From List<String> to List<RoomParticipant>
     private List<RoomParticipant> users; 
     private String type; // JOIN, LEAVE, ROLE_UPDATE, KICK
 

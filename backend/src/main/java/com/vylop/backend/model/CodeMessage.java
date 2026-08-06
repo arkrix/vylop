@@ -5,7 +5,7 @@ public class CodeMessage {
     private String content;
     private String language;
     private String type;
-    private String fileName; // --- NEW: Track which file is being edited ---
+    private String fileName; //NEW: Track which file is being edited
 
     public CodeMessage() {
     }

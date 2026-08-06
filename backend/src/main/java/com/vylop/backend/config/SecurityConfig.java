@@ -72,7 +72,7 @@ public class SecurityConfig {
                             finalUsername = existingUser.get().getUsername();
                         }
 
-                        // --- FIX: Redirect to Production Frontend ---
+                        //FIX: Redirect to Production Frontend
                         response.sendRedirect("https://vylop-frontend.onrender.com/auth?googleUsername=" + finalUsername);
                     }
                 })
@@ -84,7 +84,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // --- FIX: Add Production URL to Allowed Origins ---
+        //FIX: Add Production URL to Allowed Origins
         configuration.setAllowedOrigins(List.of("http://localhost:5173", "https://vylop-frontend.onrender.com"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

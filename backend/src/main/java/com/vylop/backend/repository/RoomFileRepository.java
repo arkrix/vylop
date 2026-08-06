@@ -11,9 +11,9 @@ import java.util.UUID;
 @Repository
 public interface RoomFileRepository extends JpaRepository<RoomFile, UUID> {
     
-    // Fetches every file that belongs to a specific workspace (Room)
+    // Fetches every file that belongs to a specific workspace
     List<RoomFile> findByRoomId(UUID roomId);
     
-    // Finds a specific file (like "main.py") inside a specific Room so we can update it
+    // Finds a specific file inside a specific Room so we can update it
     Optional<RoomFile> findByRoomIdAndFileName(UUID roomId, String fileName);
 }

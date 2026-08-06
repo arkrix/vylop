@@ -54,7 +54,7 @@ public class CodeExecutionService {
             List<Map<String, String>> extraFiles = new ArrayList<>();
             boolean hasEnv = envVars != null && !envVars.isEmpty();
 
-            // --- Universal Fallback - Create a physical .env file in the sandbox ---
+            // Universal Fallback - Create a physical .env file in the sandbox
             if (hasEnv) {
                 StringBuilder dotenv = new StringBuilder();
                 for (Map.Entry<String, String> env : envVars.entrySet()) {
@@ -66,7 +66,7 @@ public class CodeExecutionService {
                 extraFiles.add(envFileObj);
             }
 
-            // --- Seamless Dynamic Environment Injection ---
+            // Seamless Dynamic Environment Injection
             if (hasEnv) {
                 if (language.equalsIgnoreCase("python")) {
                     StringBuilder pyEnv = new StringBuilder("import os\n");
@@ -127,19 +127,7 @@ public class CodeExecutionService {
             // 2. The Bulletproof Java Handling (Delegator + Static Injection)
             if (language.equalsIgnoreCase("java")) {
                 // Find the actual class name the user wrote
-                String actualClassName = "Main"; 
-                Pattern pattern = Pattern.compile("public\\s+class\\s+([a-zA-Z0-9_]+)");
-                Matcher matcher = pattern.matcher(code);
-                
-                if (matcher.find()) {
-                    actualClassName = matcher.group(1);
-                } else {
-                    Pattern fallbackPattern = Pattern.compile("class\\s+([a-zA-Z0-9_]+)");
-                    Matcher fallbackMatcher = fallbackPattern.matcher(code);
-                    if (fallbackMatcher.find()) {
-                        actualClassName = fallbackMatcher.group(1);
-                    }
-                }
+                String actualClassName = extractJavaClassName(code);
 
                 // Inject the static block into the user's code
                 if (hasEnv) {
@@ -206,7 +194,33 @@ public class CodeExecutionService {
         }
     }
 
-    private boolean isRelatedFile(String fileName, String language) {
+    /**
+     * Extracts the user's actual Java class name from their submitted code.
+     * Prefers a public class declaration; falls back to any class declaration;
+     * defaults to "Main" if neither pattern matches.
+     * Package-private (no modifier) so it can be unit tested directly.
+     */
+    String extractJavaClassName(String code) {
+        Pattern pattern = Pattern.compile("public\\s+class\\s+([a-zA-Z0-9_]+)");
+        Matcher matcher = pattern.matcher(code);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        Pattern fallbackPattern = Pattern.compile("class\\s+([a-zA-Z0-9_]+)");
+        Matcher fallbackMatcher = fallbackPattern.matcher(code);
+        if (fallbackMatcher.find()) {
+            return fallbackMatcher.group(1);
+        }
+
+        return "Main";
+    }
+
+    /**
+     * Package-private (no modifier) so it can be unit tested directly.
+     */
+    boolean isRelatedFile(String fileName, String language) {
         if (fileName == null) return false;
         String lower = fileName.toLowerCase();
         switch (language.toLowerCase()) {

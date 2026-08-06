@@ -10,8 +10,6 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
     
-    // Spring Boot is so smart that just by naming this method "findByUsername",
-    // it automatically writes the SQL: SELECT * FROM users WHERE username = ?
     Optional<User> findByUsername(String username);
     
     Optional<User> findByEmail(String email);

@@ -47,7 +47,6 @@ public class RoomFile {
         this.language = language;
     }
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

@@ -12,10 +12,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // This is the URL: http://localhost:8080/ws
+        //URL: http://localhost:8080/ws
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*") // Allow React to connect
-                .withSockJS(); // Enable fallback options
+                .withSockJS(); //fallback options
     }
 
     @Override

@@ -29,10 +29,10 @@ public class WorkspaceService {
         this.userRepository = userRepository;
     }
 
-    /**
-     * Registers a room with just a name and host — called when the host first joins.
-     * This ensures guests can immediately sync the correct room name.
-     */
+    /*
+    Registers a room with just a name and host — called when the host first joins.
+    This ensures guests can immediately sync the correct room name.
+    */
     @Transactional
     public String registerRoom(UUID roomId, String username, String roomName) {
         Optional<User> userOpt = userRepository.findByUsername(username);
@@ -49,10 +49,10 @@ public class WorkspaceService {
         return "Room registered!";
     }
 
-    /**
-     * Retrieves metadata for a specific workspace.
-     * This is used by the frontend to sync the Room Name for all participants.
-     */
+    /*
+    Retrieves metadata for a specific workspace.
+    This is used by the frontend to sync the Room Name for all participants.
+    */
     public Map<String, Object> getWorkspaceMetadata(UUID roomId) {
         Optional<Room> roomOpt = roomRepository.findById(roomId);
         Map<String, Object> metadata = new HashMap<>();
@@ -84,17 +84,16 @@ public class WorkspaceService {
         room.setName(roomName);
         roomRepository.save(room);
 
-        // ─── THE FIX: ORPHAN CLEANUP ──────────────────────────────────────────
+        //FIX: ORPHAN CLEANUP
         // Fetch all files currently stored in the DB for this room
         List<RoomFile> existingDbFiles = roomFileRepository.findByRoomId(roomId);
         
-        // Loop through DB files. If the incoming payload DOES NOT contain them, delete them!
+        // Loop through DB files. If the incoming payload DOES NOT contain them, delete them
         for (RoomFile dbFile : existingDbFiles) {
             if (!files.containsKey(dbFile.getFileName())) {
                 roomFileRepository.delete(dbFile);
             }
         }
-        // ──────────────────────────────────────────────────────────────────────
 
         for (Map.Entry<String, String> entry : files.entrySet()) {
             String fileName = entry.getKey();
@@ -151,9 +150,9 @@ public class WorkspaceService {
         return "Workspace deleted successfully.";
     }
 
-    /**
-     * Helper to detect programming language based on file extension.
-     */
+    /*
+     Helper to detect programming language based on file extension.
+    */
     private String determineLanguage(String fileName) {
         if (fileName.endsWith(".java")) return "java";
         if (fileName.endsWith(".py")) return "python";
