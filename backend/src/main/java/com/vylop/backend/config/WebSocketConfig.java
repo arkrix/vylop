@@ -1,5 +1,6 @@
 package com.vylop.backend.config;
 
+import com.vylop.backend.security.WebSocketAuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -11,18 +12,18 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final WebSocketSecurityInterceptor webSocketSecurityInterceptor;
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
-    public WebSocketConfig(WebSocketSecurityInterceptor webSocketSecurityInterceptor) {
-        this.webSocketSecurityInterceptor = webSocketSecurityInterceptor;
+    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor) {
+        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        //URL: http://localhost:8080/ws
+        // This is the URL: http://localhost:8080/ws
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*") // Allow React to connect
-                .withSockJS(); //fallback options
+                .withSockJS(); // Enable fallback options
     }
 
     @Override
@@ -36,6 +37,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(webSocketSecurityInterceptor);
+        registration.interceptors(webSocketAuthInterceptor);
     }
 }

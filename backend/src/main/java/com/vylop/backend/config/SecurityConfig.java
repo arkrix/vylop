@@ -2,22 +2,15 @@ package com.vylop.backend.config;
 
 import com.vylop.backend.model.User;
 import com.vylop.backend.repository.UserRepository;
-import com.vylop.backend.security.CustomUserDetailsService;
 import com.vylop.backend.security.JwtAuthenticationFilter;
-import com.vylop.backend.security.JwtUtils;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
@@ -36,35 +29,13 @@ import java.util.UUID;
 public class SecurityConfig {
 
     private final UserRepository userRepository;
-    private final JwtAuthenticationFilter jwtAuthFilter;
-    private final CustomUserDetailsService userDetailsService;
-    private final JwtUtils jwtUtils;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final PasswordEncoder passwordEncoder;
 
-    public SecurityConfig(UserRepository userRepository,
-                          JwtAuthenticationFilter jwtAuthFilter,
-                          CustomUserDetailsService userDetailsService,
-                          JwtUtils jwtUtils) {
+    public SecurityConfig(UserRepository userRepository, JwtAuthenticationFilter jwtAuthenticationFilter, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.jwtAuthFilter = jwtAuthFilter;
-        this.userDetailsService = userDetailsService;
-        this.jwtUtils = jwtUtils;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Bean
@@ -74,11 +45,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/ws/**", "/api/workspace/**", "/api/execute").permitAll()
+                .requestMatchers("/api/auth/**", "/ws/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(new AuthenticationSuccessHandler() {
                     @Override
@@ -86,7 +55,7 @@ public class SecurityConfig {
                         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
                         String email = oauthUser.getAttribute("email");
                         
-                        String baseUsername = email != null ? email.split("@")[0] : "user";
+                        String baseUsername = email.split("@")[0];
                         String finalUsername = baseUsername;
 
                         Optional<User> existingUser = userRepository.findByEmail(email);
@@ -99,18 +68,17 @@ public class SecurityConfig {
                             User newUser = new User();
                             newUser.setUsername(finalUsername);
                             newUser.setEmail(email);
-                            newUser.setPassword(passwordEncoder().encode(UUID.randomUUID().toString())); 
+                            newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); 
                             userRepository.save(newUser);
                         } else {
                             finalUsername = existingUser.get().getUsername();
                         }
 
-                        String token = jwtUtils.generateToken(finalUsername);
-
-                        response.sendRedirect("https://vylop-frontend.onrender.com/auth?token=" + token + "&googleUsername=" + finalUsername);
+                        response.sendRedirect("https://vylop-frontend.onrender.com/auth?googleUsername=" + finalUsername);
                     }
                 })
-            );
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

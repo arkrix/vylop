@@ -1,25 +1,41 @@
 package com.vylop.backend.model;
 
-import java.util.List;
-
 public class UserMessage {
-    private String username;
-    // update: From List<String> to List<RoomParticipant>
-    private List<RoomParticipant> users; 
-    private String type; // JOIN, LEAVE, ROLE_UPDATE, KICK
 
-    public UserMessage() {}
+    private String sender;
+    private String content;
+    private String type;
 
-    public UserMessage(String username, List<RoomParticipant> users, String type) {
-        this.username = username;
-        this.users = users;
+    public UserMessage() {
+    }
+
+    public UserMessage(String sender, String content, String type) {
+        this.sender = sender;
+        this.content = content;
         this.type = type;
     }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public List<RoomParticipant> getUsers() { return users; }
-    public void setUsers(List<RoomParticipant> users) { this.users = users; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public String getSender() {
+        return sender;
+    }
+
+    public void setSender(String sender) {
+        this.sender = sender;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
 }

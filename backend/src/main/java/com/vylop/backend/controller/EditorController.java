@@ -1,26 +1,24 @@
 package com.vylop.backend.controller;
 
-import com.vylop.backend.model.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
+import com.vylop.backend.model.ParticipantRole;
+import com.vylop.backend.model.RoomParticipant;
+import com.vylop.backend.model.UserMessage;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.*;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 public class EditorController {
 
-    private static final Logger logger = LoggerFactory.getLogger(EditorController.class);
     private final SimpMessagingTemplate messagingTemplate;
-    
+
+    // Static thread-safe store for room users across active sessions
     private static final Map<String, Map<String, RoomParticipant>> roomUsers = new ConcurrentHashMap<>();
 
     public EditorController(SimpMessagingTemplate messagingTemplate) {
@@ -31,133 +29,117 @@ public class EditorController {
         return roomUsers;
     }
 
-    @MessageMapping("/code/{roomId}")
-    public void sendCode(@DestinationVariable String roomId, @Payload CodeMessage message) {
-        messagingTemplate.convertAndSend("/topic/code/" + roomId, message);
-    }
-
-    //FIXED: Accept raw String to prevent Jackson JSON corruption
-    @MessageMapping("/yjs/{roomId}")
-    public void sendYjsUpdate(@DestinationVariable String roomId, @Payload String payload) {
-        // Relaying the exact raw JSON string skips any Java Map/Object conversion errors
-        messagingTemplate.convertAndSend("/topic/yjs/" + roomId, payload);
-    }
-
-    @MessageMapping("/chat/{roomId}")
-    public void sendChatMessage(@DestinationVariable String roomId, @Payload ChatMessage message) {
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
-    }
-
-    @MessageMapping("/typing/{roomId}")
-    public void sendTypingEvent(@DestinationVariable String roomId, @Payload Map<String, String> payload) {
-        messagingTemplate.convertAndSend("/topic/typing/" + roomId, payload);
-    }
-
-    @MessageMapping("/cursor/{roomId}")
-    public void sendCursorEvent(@DestinationVariable String roomId, @Payload CursorMessage payload) {
-        messagingTemplate.convertAndSend("/topic/cursor/" + roomId, payload);
-    }
-
-    @MessageMapping("/room/{roomId}/join")
-    public void joinRoom(@DestinationVariable String roomId, @Payload UserMessage message, SimpMessageHeaderAccessor headerAccessor) {
-        String username = message.getUsername();
-        headerAccessor.getSessionAttributes().put("username", username);
-        headerAccessor.getSessionAttributes().put("roomId", roomId);
-
-        Map<String, RoomParticipant> usersInRoom = roomUsers.computeIfAbsent(roomId, k -> new ConcurrentHashMap<>());
+    @MessageMapping("/join/{roomId}")
+    public void joinRoom(@DestinationVariable String roomId,
+                         @Payload UserMessage message,
+                         SimpMessageHeaderAccessor headerAccessor) {
         
+        String username = message.getSender();
+        if (username == null || username.isBlank()) {
+            return;
+        }
+
+        roomUsers.putIfAbsent(roomId, new ConcurrentHashMap<>());
+        Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
+
+        // First user becomes HOST; subsequent users become READ_ONLY by default
         ParticipantRole assignedRole = usersInRoom.isEmpty() ? ParticipantRole.HOST : ParticipantRole.READ_ONLY;
         usersInRoom.put(username, new RoomParticipant(username, assignedRole));
-        
-        logger.info("User {} joined Room {} as {}", username, roomId, assignedRole);
 
-        UserMessage response = new UserMessage(
-            username, 
-            new ArrayList<>(usersInRoom.values()), 
-            "JOIN"
-        );
-        messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
-    }
-
-    @MessageMapping("/room/{roomId}/leave")
-    public void leaveRoom(@DestinationVariable String roomId, @Payload UserMessage message) {
-        handleUserLeave(roomId, message.getUsername());
-    }
-
-    @EventListener
-    public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
-        SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.wrap(event.getMessage());
-        String username = (String) headers.getSessionAttributes().get("username");
-        String roomId = (String) headers.getSessionAttributes().get("roomId");
-
-        if (username != null && roomId != null) {
-            logger.info("Socket disconnected. Removing User {} from Room {}", username, roomId);
-            handleUserLeave(roomId, username);
+        if (headerAccessor != null && headerAccessor.getSessionAttributes() != null) {
+            headerAccessor.getSessionAttributes().put("username", username);
+            headerAccessor.getSessionAttributes().put("roomId", roomId);
         }
+
+        UserMessage broadcast = new UserMessage(username, message.getContent(), "JOIN");
+        messagingTemplate.convertAndSend("/topic/users/" + roomId, broadcast);
     }
 
-    private void handleUserLeave(String roomId, String username) {
+    @MessageMapping("/leave/{roomId}")
+    public void leaveRoom(@DestinationVariable String roomId,
+                          @Payload UserMessage message) {
+        
+        String username = message.getSender();
         Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
-        if (usersInRoom != null && usersInRoom.containsKey(username)) {
-            RoomParticipant leavingUser = usersInRoom.remove(username);
-            
-            if (!usersInRoom.isEmpty() && leavingUser.getRole() == ParticipantRole.HOST) {
+
+        if (usersInRoom != null && username != null) {
+            RoomParticipant participant = usersInRoom.remove(username);
+
+            // If the HOST leaves, promote the next available participant to HOST
+            if (participant != null && participant.getRole() == ParticipantRole.HOST && !usersInRoom.isEmpty()) {
                 RoomParticipant nextHost = usersInRoom.values().iterator().next();
                 nextHost.setRole(ParticipantRole.HOST);
-                logger.info("Host left. Promoted {} to new HOST in Room {}", nextHost.getUsername(), roomId);
             }
 
-            UserMessage response = new UserMessage(
-                username, 
-                new ArrayList<>(usersInRoom.values()), 
-                "LEAVE"
-            );
-            messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
+            if (usersInRoom.isEmpty()) {
+                roomUsers.remove(roomId);
+            }
+        }
+
+        UserMessage broadcast = new UserMessage(username, message.getContent(), "LEAVE");
+        messagingTemplate.convertAndSend("/topic/users/" + roomId, broadcast);
+    }
+
+    @MessageMapping("/change-role/{roomId}")
+    public void changeRole(@DestinationVariable String roomId,
+                           @Payload Map<String, String> payload,
+                           SimpMessageHeaderAccessor headerAccessor) {
+        
+        String requester = getRequesterUsername(headerAccessor);
+        Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
+
+        if (usersInRoom == null || requester == null) {
+            return;
+        }
+
+        RoomParticipant requesterParticipant = usersInRoom.get(requester);
+        
+        // Authorization check: Only HOST can change user roles
+        if (requesterParticipant != null && requesterParticipant.getRole() == ParticipantRole.HOST) {
+            String targetUser = payload.get("targetUser");
+            String newRoleStr = payload.get("newRole");
+
+            if (targetUser != null && newRoleStr != null && usersInRoom.containsKey(targetUser)) {
+                try {
+                    ParticipantRole newRole = ParticipantRole.valueOf(newRoleStr.toUpperCase());
+                    usersInRoom.get(targetUser).setRole(newRole);
+                    messagingTemplate.convertAndSend("/topic/roles/" + roomId, usersInRoom);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
         }
     }
 
-    @MessageMapping("/room/{roomId}/roleChange")
-    public void changeRole(@DestinationVariable String roomId, @Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
-        String requester = (String) headerAccessor.getSessionAttributes().get("username");
-        String targetUser = payload.get("targetUser");
-        String newRoleStr = payload.get("newRole");
-
-        Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
+    @MessageMapping("/kick/{roomId}")
+    public void kickUser(@DestinationVariable String roomId,
+                         @Payload Map<String, String> payload,
+                         SimpMessageHeaderAccessor headerAccessor) {
         
-        if (usersInRoom != null && usersInRoom.containsKey(requester) && usersInRoom.get(requester).getRole() == ParticipantRole.HOST) {
-            if (usersInRoom.containsKey(targetUser)) {
-                usersInRoom.get(targetUser).setRole(ParticipantRole.valueOf(newRoleStr));
-                
-                logger.info("Host {} changed {}'s role to {}", requester, targetUser, newRoleStr);
-                
-                UserMessage response = new UserMessage(
-                    targetUser, 
-                    new ArrayList<>(usersInRoom.values()), 
-                    "ROLE_UPDATE"
-                );
-                messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
-            }
+        String requester = getRequesterUsername(headerAccessor);
+        Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
+
+        if (usersInRoom == null || requester == null) {
+            return;
         }
-    }
 
-    @MessageMapping("/room/{roomId}/kick")
-    public void kickUser(@DestinationVariable String roomId, @Payload Map<String, String> payload, SimpMessageHeaderAccessor headerAccessor) {
-        String requester = (String) headerAccessor.getSessionAttributes().get("username");
-        String targetUser = payload.get("targetUser");
+        RoomParticipant requesterParticipant = usersInRoom.get(requester);
 
-        Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
-        
-        if (usersInRoom != null && usersInRoom.containsKey(requester) && usersInRoom.get(requester).getRole() == ParticipantRole.HOST) {
-            if (usersInRoom.containsKey(targetUser)) {
+        // Authorization check: Only HOST can kick participants
+        if (requesterParticipant != null && requesterParticipant.getRole() == ParticipantRole.HOST) {
+            String targetUser = payload.get("targetUser");
+            
+            // Prevent host from kicking themselves
+            if (targetUser != null && !targetUser.equals(requester)) {
                 usersInRoom.remove(targetUser);
-                
-                UserMessage response = new UserMessage(
-                    targetUser, 
-                    new ArrayList<>(usersInRoom.values()), 
-                    "KICK"
-                );
-                messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
+                messagingTemplate.convertAndSend("/topic/kicked/" + roomId, Map.of("kickedUser", targetUser));
             }
         }
+    }
+
+    private String getRequesterUsername(SimpMessageHeaderAccessor headerAccessor) {
+        if (headerAccessor != null && headerAccessor.getSessionAttributes() != null) {
+            return (String) headerAccessor.getSessionAttributes().get("username");
+        }
+        return null;
     }
 }

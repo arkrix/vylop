@@ -7,3 +7,5 @@
 *.sln
 *.sw?
 .env
+client_secret.json
+*.json

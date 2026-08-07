@@ -1,0 +1,6 @@
+com\vylop\backend\BackendApplicationTests.class
+com\vylop\backend\service\CodeExecutionServiceTest.class
+com\vylop\backend\controller\EditorControllerTest.class
+com\vylop\backend\service\AuthServiceTest.class
+com\vylop\backend\service\WorkspaceServiceTest.class
+com\vylop\backend\controller\AuthControllerTest.class
