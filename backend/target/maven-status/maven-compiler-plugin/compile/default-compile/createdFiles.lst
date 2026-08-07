@@ -9,6 +9,7 @@ com\vylop\backend\model\CodeMessage.class
 com\vylop\backend\model\ChatMessage.class
 com\vylop\backend\model\CursorMessage.class
 com\vylop\backend\security\JwtAuthenticationFilter.class
+com\vylop\backend\security\JwtUtils.class
 com\vylop\backend\config\WebSocketConfig.class
 com\vylop\backend\config\SecurityConfig.class
 com\vylop\backend\model\RoomParticipant.class
@@ -18,6 +19,7 @@ com\vylop\backend\repository\RoomRepository.class
 com\vylop\backend\BackendApplication.class
 com\vylop\backend\service\AuthService.class
 com\vylop\backend\model\User.class
+com\vylop\backend\dto\AuthResponse.class
 com\vylop\backend\controller\EditorController.class
 com\vylop\backend\repository\RoomFileRepository.class
 com\vylop\backend\security\WebSocketAuthInterceptor.class
@@ -25,8 +27,12 @@ com\vylop\backend\service\WorkspaceService.class
 com\vylop\backend\controller\CodeExecutionController.class
 com\vylop\backend\config\SecurityConfig$1.class
 com\vylop\backend\model\Room.class
+com\vylop\backend\security\CustomUserDetailsService.class
 com\vylop\backend\config\ApplicationConfig.class
+com\vylop\backend\config\FlywayConfig.class
+com\vylop\backend\config\WebSocketSecurityInterceptor.class
 com\vylop\backend\controller\AuthController.class
 com\vylop\backend\controller\HealthController.class
+com\vylop\backend\dto\AuthRequest.class
 com\vylop\backend\repository\UserRepository.class
 com\vylop\backend\model\RoomFile.class

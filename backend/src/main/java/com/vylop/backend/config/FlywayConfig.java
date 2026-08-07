@@ -1,29 +1,22 @@
 package com.vylop.backend.config;
 
 import org.flywaydb.core.Flyway;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.sql.DataSource;
 
 @Configuration
 public class FlywayConfig {
 
-    @Value("${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/vylopdb}")
-    private String dbUrl;
-
-    @Value("${SPRING_DATASOURCE_USERNAME:postgres}")
-    private String dbUser;
-
-    @Value("${SPRING_DATASOURCE_PASSWORD:vylop_admin}")
-    private String dbPassword;
-
     @Bean(initMethod = "migrate")
-    public Flyway flyway() {
+    @ConditionalOnProperty(name = "spring.flyway.enabled", havingValue = "true", matchIfMissing = true)
+    public Flyway flyway(DataSource dataSource) {
         return Flyway.configure()
-                .dataSource(dbUrl, dbUser, dbPassword)
+                .dataSource(dataSource)
                 .locations("classpath:db/migration")
                 .baselineOnMigrate(true)
-                .baselineVersion("1")
                 .load();
     }
 }

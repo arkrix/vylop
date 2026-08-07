@@ -1,12 +1,16 @@
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\BackendApplication.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\config\ApplicationConfig.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\config\FlywayConfig.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\config\SecurityConfig.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\config\WebSocketConfig.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\config\WebSocketSecurityInterceptor.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\controller\AuthController.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\controller\CodeExecutionController.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\controller\EditorController.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\controller\HealthController.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\controller\WorkspaceController.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\dto\AuthRequest.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\dto\AuthResponse.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\dto\ExecuteRequest.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\dto\ExecuteResponse.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\dto\LoginRequest.java
@@ -23,8 +27,10 @@ C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\model\User
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\repository\RoomFileRepository.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\repository\RoomRepository.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\repository\UserRepository.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\security\CustomUserDetailsService.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\security\JwtAuthenticationFilter.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\security\JwtService.java
+C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\security\JwtUtils.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\security\WebSocketAuthInterceptor.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\service\AuthService.java
 C:\Users\ASUS\Documents\vylop\backend\src\main\java\com\vylop\backend\service\CodeExecutionService.java
