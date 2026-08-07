@@ -5,7 +5,9 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.3</version> <relativePath/> </parent>
+        <version>4.0.7</version>
+        <relativePath/>
+    </parent>
     <groupId>com.vylop</groupId>
     <artifactId>backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>

@@ -1,15 +1,15 @@
 package com.vylop.backend.dto;
 
-public class LoginRequest {
+public class AuthRequest {
 
     private String username;
     private String email;
     private String password;
 
-    public LoginRequest() {
+    public AuthRequest() {
     }
 
-    public LoginRequest(String username, String email, String password) {
+    public AuthRequest(String username, String email, String password) {
         this.username = username;
         this.email = email;
         this.password = password;
