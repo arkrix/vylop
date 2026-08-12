@@ -1,94 +1,316 @@
-# ⚡ Vylop
+<div align="center">
 
-A high-performance, real-time code collaboration platform built for the modern web. Vylop enables developers to conduct remote technical interviews, pair programming sessions, and collaborative debugging in a fully synchronized environment. Powered by CRDTs (Conflict-free Replicated Data Types), code changes, cursor positions, and chat messages are mathematically resolved and broadcast instantly to all participants via persistent WebSocket connections.
+<img src="frontend/public/vylop-hq.png" alt="Vylop Logo" width="120" height="120" />
 
----
+# Vylop
 
-## ✅ Features
+<p><strong>A real-time collaborative code platform for technical interviews, pair programming, and remote developer teams.</strong></p>
 
-- 🔴 **CRDT-Powered Collaborative Editing** — Multiple users can edit code simultaneously with zero merge conflicts, backed by Yjs and live remote cursor tracking.
-- 📁 **Advanced Workspace Management** — Create empty files, mass-upload local files with automatic extension validation, and safely delete files synchronized across all clients.
-- ▶️ **Code Execution Engine** — Run code in real-time across multiple languages (Java, Python, C++, JavaScript, TypeScript, Go, Rust).
-- 🔒 **Environment Secrets** — Securely inject environment variables (API keys, DB credentials) into your execution environment without saving them to the codebase.
-- 📦 **One-Click Export** — Package and download your entire multi-file workspace instantly as a `.zip` archive.
-- 📝 **Live Markdown Preview** — Write documentation side-by-side with a real-time rendered Markdown viewer.
-- 💬 **Integrated Chat** — Dedicated sidebar for text communication and typing indicators during coding sessions.
-- ☁️ **Workspace Persistence** — Save and restore your workspace from the cloud, with smart orphan-cleanup algorithms to prevent database memory leaks.
-- 🔐 **Authentication** — Supports both username/password login and Google OAuth2.
-- ⌨️ **Vim Mode** — Toggle Vim keybindings inside the Monaco editor.
+[![Java](https://img.shields.io/badge/Java-17+-ED8B00?logo=openjdk\&logoColor=white)](#requirements)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?logo=springboot\&logoColor=white)](#tech-stack)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react\&logoColor=black)](#tech-stack)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql\&logoColor=white)](#tech-stack)
+[![WebSockets](https://img.shields.io/badge/Real--Time-WebSockets-010101?logo=socketdotio\&logoColor=white)](#features)
+
+</div>
 
 ---
 
-## 🏗 Architecture Overview
+## Requirements
 
-Vylop uses an event-driven architecture built around persistent Full-Duplex WebSocket communication, moving beyond traditional HTTP request-response cycles.
+Before running Vylop locally, make sure the following software is installed:
 
-### Backend
-- **Java & Spring Boot 3** — Core application framework.
-- **STOMP over WebSockets** — Manages concurrent user sessions and connection lifecycles. The STOMP controllers are optimized to act as raw, high-throughput binary relays to prevent JSON serialization corruption during CRDT state updates.
-- **Spring Security + OAuth2** — Google OAuth2 integration for social login alongside standard username/password authentication.
-- **PostgreSQL** — Persistent storage for user profiles, room metadata, and saved workspaces.
-- **Docker** — Containerized for consistent local and production environments.
+| Requirement                    | Version                    |
+| ------------------------------ | -------------------------- |
+| **Java Development Kit (JDK)** | 17 or higher               |
+| **Node.js**                    | 18 or higher               |
+| **npm**                        | 9 or higher                |
+| **PostgreSQL**                 | 14 or higher               |
+| **Apache Maven**               | 3.9 or higher              |
+| **Git**                        | Latest recommended version |
+| **Docker & Docker Compose**    | Optional                   |
 
-### Frontend
-- **React.js + Vite** — Fast, reactive UI with near-instant load times.
-- **Monaco Editor** — The same engine powering VS Code, providing professional-grade syntax highlighting and editing.
-- **Yjs & y-monaco** — Peer-to-peer shared memory engine handling distributed mathematical conflict resolution.
-- **SockJS + STOMP.js** — WebSocket client for real-time synchronization.
-- **Tailwind CSS** — Utility-first styling.
+You will also need:
+
+* A running PostgreSQL instance.
+* A PostgreSQL database for Vylop.
+* The required application configuration values.
+* Authentication configuration if using Google OAuth2.
+
+> [!IMPORTANT]
+> Never commit database passwords, JWT secrets, OAuth credentials, API keys, or other sensitive configuration values to the repository.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## Getting Started
 
-### Prerequisites
-- Java 17+
-- Node.js 18+
-- PostgreSQL
-- Docker (optional)
+Follow the steps below to run Vylop locally.
 
-### Backend Setup
+### 1. Clone the Repository
+
+Clone the repository and move into the project directory:
+
+```bash
+git clone https://github.com/your-username/vylop.git
+cd vylop
+```
+
+### 2. Set Up PostgreSQL
+
+Create a PostgreSQL database for Vylop:
+
+```sql
+CREATE DATABASE vylop_db;
+```
+
+Make sure PostgreSQL is running before starting the backend.
+
+### 3. Configure the Backend
+
+Navigate to the backend:
+
 ```bash
 cd backend
-# Configure your database in src/main/resources/application.properties
-# Set: spring.datasource.url, spring.datasource.username, spring.datasource.password
+```
+
+Configure the database connection and application secrets through your Spring Boot configuration.
+
+For example:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/vylop_db
+spring.datasource.username=your_postgres_user
+spring.datasource.password=your_postgres_password
+
+jwt.secret=your_jwt_secret_key_here
+```
+
+Environment variables can also be used where supported by the application configuration.
+
+> [!WARNING]
+> The values above are examples only. Replace them with your local configuration and keep secrets outside version control.
+
+### 4. Build the Backend
+
+Build the Spring Boot application:
+
+```bash
+mvn clean package -DskipTests
+```
+
+### 5. Start the Backend
+
+Run the application:
+
+```bash
 mvn spring-boot:run
 ```
 
-### Frontend Setup
-```Bash
+The backend will start at:
+
+```text
+http://localhost:8080
+```
+
+### 6. Start the Frontend
+
+Open a **new terminal** and navigate to the frontend:
+
+```bash
 cd frontend
+```
+
+Install the required dependencies:
+
+```bash
 npm install
+```
+
+Start the Vite development server:
+
+```bash
 npm run dev
 ```
 
-The frontend runs on `http://localhost:5173` and the backend on `http://localhost:8080`.
+The frontend will be available at:
+
+```text
+http://localhost:5173
+```
+
+### 7. Verify the Installation
+
+Once both services are running:
+
+1. Open `http://localhost:5173` in your browser.
+2. Verify that the backend is running on port `8080`.
+3. Create or join a collaborative session.
+4. Test real-time code editing.
+5. Test workspace and session functionality.
+
+> [!TIP]
+> Run the frontend and backend in separate terminal sessions so you can easily monitor logs from both services during development.
 
 ---
 
-## 🌐 Deployment & Infrastructure
+## Features
 
-- **Cloud Hosting** — Deployed on [Render](https://render.com) using a Blueprint (`render.yaml`) to provision the web service and managed PostgreSQL database as a single infrastructure unit
-- **Containerization** — Docker ensures 1:1 parity between local and production environments
-- **Frontend** — Built with Vite and served as a static site via Render's CDN
+### Real-Time Collaborative Editing
+
+Vylop provides a synchronized coding environment where multiple participants can work on the same codebase simultaneously.
+
+* CRDT-based synchronization using **Yjs**
+* Conflict-free concurrent editing
+* Live remote cursor tracking
+* Persistent WebSocket communication
+* Monaco Editor integration
+* Real-time state synchronization
+
+### Multi-File Workspace Management
+
+Vylop supports complete project workspaces rather than limiting sessions to a single source file.
+
+* Hierarchical file and folder structure
+* Empty file creation
+* Bulk local file uploads
+* Automatic file-extension validation
+* Synchronized file deletion
+* Persistent workspace state
+
+### Multi-Language Code Execution
+
+Run code directly from the collaborative workspace.
+
+Supported languages include:
+
+* **Java**
+* **Python**
+* **C++**
+* **JavaScript**
+* **TypeScript**
+* **Go**
+* **Rust**
+
+### One-Click Workspace Export
+
+Download the complete multi-file workspace as a `.zip` archive.
+
+This makes it possible to:
+
+* Preserve a coding session locally
+* Share the project with other developers
+* Continue development outside Vylop
+
+### Live Markdown Preview
+
+Vylop includes a Markdown editing experience with a real-time rendered preview.
+
+This allows users to write documentation alongside their code without leaving the collaborative workspace.
+
+### Integrated Session Chat
+
+Communicate with other participants directly inside a coding session.
+
+Features include:
+
+* Session-based messaging
+* User presence
+* Typing indicators
+* Real-time message delivery
+
+### Cloud Workspace Persistence
+
+Workspaces can be persisted and restored across sessions.
+
+Vylop also includes background cleanup routines for orphaned workspace data to reduce unnecessary database growth.
+
+### Authentication & Security
+
+Vylop provides authenticated access using:
+
+* JWT-based authentication
+* Google OAuth2
+* Spring Security
+* Protected application resources
+
+### Vim Mode
+
+Developers who prefer Vim-style editing can enable Vim keybindings directly inside the Monaco Editor.
 
 ---
 
-## 🗺 Roadmap
+## Tech Stack
 
-- [ ] Voice communication during coding sessions
-- [ ] AI code suggestions and explanations
-- [ ] Room history and playback
-- [ ] Custom themes and editor settings persistence
+| Layer                       | Technology          | Purpose                           |
+| --------------------------- | ------------------- | --------------------------------- |
+| **Frontend**                | React 18            | User interface                    |
+| **Build Tool**              | Vite                | Frontend development and bundling |
+| **Editor**                  | Monaco Editor       | Code editing                      |
+| **Collaboration**           | Yjs                 | CRDT-based synchronization        |
+| **Editor Binding**          | y-monaco            | Yjs ↔ Monaco integration          |
+| **Styling**                 | Tailwind CSS        | UI styling                        |
+| **Real-Time Communication** | WebSockets / STOMP  | Real-time messaging               |
+| **WebSocket Client**        | SockJS / STOMP.js   | Client-side connection management |
+| **Backend**                 | Java 17             | Backend runtime                   |
+| **Framework**               | Spring Boot 3       | REST and application services     |
+| **Security**                | Spring Security     | Authentication and authorization  |
+| **Authentication**          | JWT / Google OAuth2 | User authentication               |
+| **Database**                | PostgreSQL          | Persistent data storage           |
+| **Build System**            | Maven               | Backend dependency management     |
+| **Containerization**        | Docker              | Application containerization      |
+| **Deployment**              | Render              | Cloud deployment                  |
 
 ---
 
-## 🛠 Tech Stack
+## Project Structure
 
-| Layer | Technology |
-|---|---|
-| Backend | Java, Spring Boot, Spring Security, WebSocket/STOMP |
-| Frontend | React, Vite, Monaco Editor, Tailwind CSS |
-| Database | PostgreSQL |
-| Auth | Google OAuth2, Username/Password |
-| Deployment | Render, Docker |
+```text
+vylop/
+│
+├── backend/
+│   ├── src/
+│   │   ├── main/
+│   │   └── test/
+│   └── pom.xml
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.*
+│
+├── render.yaml
+└── README.md
+```
+
+### Backend
+
+The `backend` directory contains the Spring Boot application responsible for:
+
+* REST APIs
+* Authentication and authorization
+* WebSocket communication
+* Workspace persistence
+* User management
+* Database interaction
+* Session-related backend logic
+
+### Frontend
+
+The `frontend` directory contains the React application responsible for:
+
+* User interface
+* Monaco Editor integration
+* Collaborative editing
+* Workspace management
+* Real-time session features
+* Chat and presence
+* Client-side application state
+
+---
+
+## License
+
+This project is currently maintained as an open-source project.
+
+See the repository for the applicable license and project policies.
