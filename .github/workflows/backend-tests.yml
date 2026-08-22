@@ -1,4 +1,4 @@
-name: Backend Tests
+name: Server Tests
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
           cache: maven
 
       - name: Run tests
-        working-directory: ./backend
+        working-directory: ./server
         run: mvn test
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/vylopdb
