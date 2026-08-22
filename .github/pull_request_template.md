@@ -15,13 +15,13 @@
 
 ## Proposed Changes
 <!-- Detail what files were modified and how the solution was implemented. -->
-- **Backend:** 
-- **Frontend:** 
+- **Server:** 
+- **Web:** 
 
 ## Testing & Verification
 <!-- Describe how you tested these changes locally (e.g., mvn test, npm run build, browser manual test). -->
-- [ ] Backend unit/integration tests passed (`mvn test`)
-- [ ] Frontend builds successfully (`npm run build`)
+- [ ] Server unit/integration tests passed (`mvn test`)
+- [ ] Web builds successfully (`npm run build`)
 - [ ] Tested real-time WebSocket synchronization locally (if applicable)
 
 ## Checklist

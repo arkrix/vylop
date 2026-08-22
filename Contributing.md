@@ -56,13 +56,13 @@ When proposing an enhancement, include:
 
 3. Verify that the local build and test suites pass:
 
-   **Backend:**
+   **Server:**
 
    ```bash
    mvn test
    ```
 
-   **Frontend:**
+   **Web:**
 
    ```bash
    npm test

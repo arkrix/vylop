@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/vylop-hq.png" alt="Vylop Logo" width="120" height="120" />
+<img src="web/public/vylop-hq.png" alt="Vylop Logo" width="120" height="120" />
 
 # Vylop
 
@@ -63,14 +63,14 @@ Create a PostgreSQL database for Vylop:
 CREATE DATABASE vylop_db;
 ```
 
-Make sure PostgreSQL is running before starting the backend.
+Make sure PostgreSQL is running before starting the server.
 
-### 3. Configure the Backend
+### 3. Configure the Server
 
-Navigate to the backend:
+Navigate to the server:
 
 ```bash
-cd backend
+cd server
 ```
 
 Configure the database connection and application secrets through your Spring Boot configuration.
@@ -90,7 +90,7 @@ Environment variables can also be used where supported by the application config
 > [!WARNING]
 > The values above are examples only. Replace them with your local configuration and keep secrets outside version control.
 
-### 4. Build the Backend
+### 4. Build the Server
 
 Build the Spring Boot application:
 
@@ -98,7 +98,7 @@ Build the Spring Boot application:
 mvn clean package -DskipTests
 ```
 
-### 5. Start the Backend
+### 5. Start the Server
 
 Run the application:
 
@@ -106,18 +106,18 @@ Run the application:
 mvn spring-boot:run
 ```
 
-The backend will start at:
+The server will start at:
 
 ```text
 http://localhost:8080
 ```
 
-### 6. Start the Frontend
+### 6. Start the Web
 
-Open a **new terminal** and navigate to the frontend:
+Open a **new terminal** and navigate to the web:
 
 ```bash
-cd frontend
+cd web
 ```
 
 Install the required dependencies:
@@ -132,7 +132,7 @@ Start the Vite development server:
 npm run dev
 ```
 
-The frontend will be available at:
+The web will be available at:
 
 ```text
 http://localhost:5173
@@ -143,13 +143,13 @@ http://localhost:5173
 Once both services are running:
 
 1. Open `http://localhost:5173` in your browser.
-2. Verify that the backend is running on port `8080`.
+2. Verify that the server is running on port `8080`.
 3. Create or join a collaborative session.
 4. Test real-time code editing.
 5. Test workspace and session functionality.
 
 > [!TIP]
-> Run the frontend and backend in separate terminal sessions so you can easily monitor logs from both services during development.
+> Run the web and server in separate terminal sessions so you can easily monitor logs from both services during development.
 
 ---
 
@@ -243,20 +243,20 @@ Developers who prefer Vim-style editing can enable Vim keybindings directly insi
 
 | Layer                       | Technology          | Purpose                           |
 | --------------------------- | ------------------- | --------------------------------- |
-| **Frontend**                | React 18            | User interface                    |
-| **Build Tool**              | Vite                | Frontend development and bundling |
+| **Web**                | React 18            | User interface                    |
+| **Build Tool**              | Vite                | Web development and bundling |
 | **Editor**                  | Monaco Editor       | Code editing                      |
 | **Collaboration**           | Yjs                 | CRDT-based synchronization        |
 | **Editor Binding**          | y-monaco            | Yjs ↔ Monaco integration          |
 | **Styling**                 | Tailwind CSS        | UI styling                        |
 | **Real-Time Communication** | WebSockets / STOMP  | Real-time messaging               |
 | **WebSocket Client**        | SockJS / STOMP.js   | Client-side connection management |
-| **Backend**                 | Java 17             | Backend runtime                   |
+| **Server**                 | Java 17             | Server runtime                   |
 | **Framework**               | Spring Boot 3       | REST and application services     |
 | **Security**                | Spring Security     | Authentication and authorization  |
 | **Authentication**          | JWT / Google OAuth2 | User authentication               |
 | **Database**                | PostgreSQL          | Persistent data storage           |
-| **Build System**            | Maven               | Backend dependency management     |
+| **Build System**            | Maven               | Server dependency management     |
 | **Containerization**        | Docker              | Application containerization      |
 | **Deployment**              | Render              | Cloud deployment                  |
 
@@ -267,13 +267,13 @@ Developers who prefer Vim-style editing can enable Vim keybindings directly insi
 ```text
 vylop/
 │
-├── backend/
+├── server/
 │   ├── src/
 │   │   ├── main/
 │   │   └── test/
 │   └── pom.xml
 │
-├── frontend/
+├── web/
 │   ├── public/
 │   ├── src/
 │   ├── package.json
@@ -283,9 +283,9 @@ vylop/
 └── README.md
 ```
 
-### Backend
+### Server
 
-The `backend` directory contains the Spring Boot application responsible for:
+The `server` directory contains the Spring Boot application responsible for:
 
 * REST APIs
 * Authentication and authorization
@@ -293,11 +293,11 @@ The `backend` directory contains the Spring Boot application responsible for:
 * Workspace persistence
 * User management
 * Database interaction
-* Session-related backend logic
+* Session-related server logic
 
-### Frontend
+### Web
 
-The `frontend` directory contains the React application responsible for:
+The `web` directory contains the React application responsible for:
 
 * User interface
 * Monaco Editor integration

@@ -21,6 +21,6 @@ jobs:
         cache: maven
 
     - name: Build and Test with Maven
-      run: mvn clean test --file backend/pom.xml
+      run: mvn clean test --file server/pom.xml
       env:
         SPRING_PROFILES_ACTIVE: test
