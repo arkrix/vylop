@@ -263,7 +263,17 @@ const CodeEditor = () => {
                 `;
                 
                 domNode.title = `Line ${err.line}: ${err.message}`;
-                domNode.innerHTML = `<span style="opacity:0.7;font-size:10px;margin-right:4px">${icon}</span>${err.message}`;
+                
+                const iconSpan = document.createElement('span');
+                iconSpan.style.opacity = '0.7';
+                iconSpan.style.fontSize = '10px';
+                iconSpan.style.marginRight = '4px';
+                iconSpan.textContent = icon;
+                
+                const textNode = document.createTextNode(err.message);
+                domNode.appendChild(iconSpan);
+                domNode.appendChild(textNode);
+
                 domNode.onclick = () => { 
                     editor.revealLineNearTop(err.line); 
                     editor.setPosition({ lineNumber: err.line, column: 1 }); 
@@ -464,7 +474,7 @@ const CodeEditor = () => {
                 vimInstanceRef.current = null; 
             }
             const statusNode = document.getElementById('vim-status-bar');
-            if (statusNode) statusNode.innerHTML = '';
+            if (statusNode) statusNode.textContent = '';
             setIsVimMode(false);
             toast("Vim Mode Disabled", { icon: '⌨️' });
         } else {
