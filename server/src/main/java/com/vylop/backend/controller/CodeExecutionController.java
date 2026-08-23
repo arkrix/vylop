@@ -4,6 +4,7 @@ import com.vylop.backend.dto.ExecuteRequest;
 import com.vylop.backend.service.CodeExecutionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +29,7 @@ public class CodeExecutionController {
         this.executionService = executionService;
     }
 
-    @PostMapping
+    @PostMapping(produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> runCode(@RequestBody ExecuteRequest payload, HttpServletRequest request) {
         
         // 1. Rate Limiting Check
@@ -40,6 +41,7 @@ public class CodeExecutionController {
             if (currentTime - lastRequestTime < COOLDOWN_TIME) {
                 long timeLeft = (COOLDOWN_TIME - (currentTime - lastRequestTime)) / 1000 + 1;
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .contentType(MediaType.TEXT_PLAIN)
                         .body("Rate limit exceeded. Please wait " + timeLeft + " seconds before running code again.");
             }
         }
@@ -49,13 +51,19 @@ public class CodeExecutionController {
 
         // 2. Validate Inputs & Size Constraints
         if (payload.getLanguage() == null || payload.getLanguage().isBlank()) {
-            return ResponseEntity.badRequest().body("Error: Language parameter is required.");
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Error: Language parameter is required.");
         }
         if (payload.getCode() == null || payload.getCode().isBlank()) {
-            return ResponseEntity.badRequest().body("Error: Code snippet cannot be empty.");
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Error: Code snippet cannot be empty.");
         }
         if (payload.getCode().length() > MAX_CODE_LENGTH) {
-            return ResponseEntity.badRequest().body("Error: Code payload exceeds maximum size limit (64 KB).");
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("Error: Code payload exceeds maximum size limit (64 KB).");
         }
 
         String mainFile = payload.getMainFile() != null ? payload.getMainFile() : "Main.java";
@@ -69,6 +77,8 @@ public class CodeExecutionController {
                 payload.getFiles(),
                 payload.getEnvVars()
         );
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(result);
     }
 }
