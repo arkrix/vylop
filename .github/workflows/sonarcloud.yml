@@ -1,0 +1,36 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  analysis:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze with SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=arkrix
+            -Dsonar.projectKey=arkrix_vylop
+            -Dsonar.sources=server/src/main,web/src
+            -Dsonar.tests=server/src/test
+            -Dsonar.exclusions=**/node_modules/**,**/target/**,**/*.spec.*,**/*.test.*
+            -Dsonar.javascript.lcov.reportPaths=web/coverage/lcov.info
