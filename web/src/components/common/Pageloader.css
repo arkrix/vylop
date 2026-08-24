@@ -1,0 +1,202 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* --- Fullscreen Loading Overlay --- */
+.page-loader-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #08090c;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  user-select: none;
+}
+
+/* Ambient Radial Glow */
+.loader-ambient-glow {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(56, 189, 248, 0.08) 40%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(100px);
+  pointer-events: none;
+  animation: ambientFloat 4s ease-in-out infinite alternate;
+}
+
+@keyframes ambientFloat {
+  0% { transform: scale(0.9) translate(-10px, -10px); opacity: 0.7; }
+  100% { transform: scale(1.1) translate(10px, 10px); opacity: 1; }
+}
+
+/* Central Animation Container */
+.loader-content-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  z-index: 2;
+}
+
+/* Radar & Glowing Icon Box */
+.loader-radar-wrapper {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  animation: radarRipple 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.loader-pulse-ring.delay-1 {
+  animation-delay: 0.7s;
+}
+
+.loader-pulse-ring.delay-2 {
+  animation-delay: 1.4s;
+}
+
+@keyframes radarRipple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+    border-color: rgba(56, 189, 248, 0.6);
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+    border-color: rgba(16, 185, 129, 0);
+  }
+}
+
+.loader-icon-core {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  background: rgba(13, 16, 23, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Cyber Scanning Line across the Icon */
+.loader-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #10b981, transparent);
+  box-shadow: 0 0 12px #38bdf8;
+  animation: scanSweep 2s ease-in-out infinite;
+}
+
+@keyframes scanSweep {
+  0% { top: 0%; opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.loader-brand-icon {
+  width: 32px;
+  height: 32px;
+  color: #34d399;
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
+  animation: iconBreathe 2s ease-in-out infinite alternate;
+}
+
+@keyframes iconBreathe {
+  0% { transform: scale(0.96); filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.4)); }
+  100% { transform: scale(1.04); filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.7)); }
+}
+
+/* Status Text & Dynamic Message */
+.loader-text-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.loader-main-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.loader-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.loader-dynamic-msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: #94a3b8;
+  max-width: 360px;
+  min-height: 18px;
+  letter-spacing: -0.01em;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Progress Track Bar */
+.loader-progress-track {
+  width: 180px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 4px;
+}
+
+.loader-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -50%;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, transparent, #38bdf8, #10b981, transparent);
+  border-radius: 9999px;
+  animation: progressIndeterminate 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes progressIndeterminate {
+  0% { left: -50%; }
+  100% { left: 100%; }
+}

@@ -1,30 +1,40 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import PageLoader from "../../components/common/PageLoader";
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Get the username from the URL (e.g., ?googleUsername=shardool)
     const googleUsername = searchParams.get("googleUsername");
 
-    if (googleUsername) {
-      // 2. Save it to localStorage so the app knows you are logged in
-      localStorage.setItem("username", googleUsername);
-      
-      // 3. (Optional) You might want to save a flag that it was a google login
-      localStorage.setItem("loginType", "google");
+    const completeOAuthSession = async () => {
+      // Intentional delay to showcase the transition loader
+      await new Promise(resolve => setTimeout(resolve, 1400));
 
-      // 4. Redirect the user to the dashboard immediately
-      navigate("/dashboard");
-    } else {
-      // If something failed, send them back to login
-      navigate("/");
-    }
+      if (googleUsername) {
+        localStorage.setItem("username", googleUsername);
+        localStorage.setItem("loginType", "google");
+        
+        const redirectUrl = localStorage.getItem("redirectUrl") || "/";
+        localStorage.removeItem("redirectUrl");
+
+        navigate(redirectUrl, { replace: true });
+      } else {
+        navigate("/auth", { replace: true });
+      }
+    };
+
+    completeOAuthSession();
   }, [searchParams, navigate]);
 
-  return <div className="flex items-center justify-center h-screen">Logging you in...</div>;
+  return (
+    <PageLoader 
+      message="Finalizing Google Authentication..." 
+      subtext="Exchanging cryptographic tokens and initializing your workspace profile..." 
+    />
+  );
 };
 
 export default AuthCallback;

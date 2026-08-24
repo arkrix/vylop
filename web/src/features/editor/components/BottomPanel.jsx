@@ -1,194 +1,181 @@
 import React from 'react';
+import { Terminal, CheckCircle2, SlidersHorizontal, Trash2, X, Maximize2, Minimize2 } from 'lucide-react';
 import SubmissionReport from '../../evaluation/SubmissionReport';
 
 const BottomPanel = ({
-    currentProblem,
-    activeBottomTab,
-    setActiveBottomTab,
-    activeTestCaseId,
-    setActiveTestCaseId,
-    isSubmitting,
-    submissionResult,
-    output,
-    setOutput,
-    renderFormattedOutput,
-    userInput,
-    setUserInput
+  currentProblem,
+  activeBottomTab,
+  setActiveBottomTab,
+  activeTestCaseId,
+  setActiveTestCaseId,
+  isSubmitting,
+  submissionResult,
+  output,
+  setOutput,
+  renderFormattedOutput,
+  userInput,
+  setUserInput,
+  onClose,
+  isMaximized,
+  onToggleMaximize
 }) => {
-    return (
-        <div className="io-wrapper" style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', backgroundColor: '#161b22', padding: '0 10px' }}>
-                {currentProblem && (
-                    <button 
-                        style={{ 
-                            background: 'transparent', 
-                            border: 'none', 
-                            color: activeBottomTab === 'testcases' ? '#58a6ff' : 'var(--text-muted)', 
-                            borderBottom: activeBottomTab === 'testcases' ? '2px solid #58a6ff' : '2px solid transparent', 
-                            padding: '10px 15px', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold', 
-                            fontSize: '0.85rem' 
-                        }}
-                        onClick={() => setActiveBottomTab('testcases')}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
-                            <polyline points="9 11 12 14 22 4"></polyline>
-                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                        </svg>
-                        Testcases
-                    </button>
-                )}
-                
-                <button 
-                    style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: activeBottomTab === 'console' ? '#58a6ff' : 'var(--text-muted)', 
-                        borderBottom: activeBottomTab === 'console' ? '2px solid #58a6ff' : '2px solid transparent', 
-                        padding: '10px 15px', 
-                        cursor: 'pointer', 
-                        fontWeight: 'bold', 
-                        fontSize: '0.85rem' 
-                    }}
-                    onClick={() => setActiveBottomTab('console')}
-                >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
-                        <polyline points="4 17 10 11 4 5"></polyline>
-                        <line x1="12" y1="19" x2="20" y2="19"></line>
-                    </svg>
-                    Test Result
-                </button>
+  return (
+    <div className="io-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-editor-base)' }}>
+      {/* Tab Switcher & Panel Controls */}
+      <div className="io-tab-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex' }}>
+          {currentProblem && (
+            <button 
+              className={`io-tab-btn ${activeBottomTab === 'testcases' ? 'active' : ''}`}
+              onClick={() => setActiveBottomTab('testcases')}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+              <span>Testcases</span>
+            </button>
+          )}
+          
+          <button 
+            className={`io-tab-btn ${activeBottomTab === 'console' ? 'active' : ''}`}
+            onClick={() => setActiveBottomTab('console')}
+          >
+            <Terminal className="w-3.5 h-3.5 mr-1.5" />
+            <span>Output / Terminal</span>
+          </button>
 
-                {currentProblem && (
-                    <button 
-                        style={{ 
-                            background: 'transparent', 
-                            border: 'none', 
-                            color: activeBottomTab === 'submission' ? '#3fb950' : 'var(--text-muted)', 
-                            borderBottom: activeBottomTab === 'submission' ? '2px solid #3fb950' : '2px solid transparent', 
-                            padding: '10px 15px', 
-                            cursor: 'pointer', 
-                            fontWeight: 'bold', 
-                            fontSize: '0.85rem' 
-                        }}
-                        onClick={() => setActiveBottomTab('submission')}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                        Submission
-                    </button>
-                )}
-                
-                <button 
-                    style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: activeBottomTab === 'custom' ? '#58a6ff' : 'var(--text-muted)', 
-                        borderBottom: activeBottomTab === 'custom' ? '2px solid #58a6ff' : '2px solid transparent', 
-                        padding: '10px 15px', 
-                        cursor: 'pointer', 
-                        fontWeight: 'bold', 
-                        fontSize: '0.85rem' 
-                    }}
-                    onClick={() => setActiveBottomTab('custom')}
+          {currentProblem && (
+            <button 
+              className={`io-tab-btn ${activeBottomTab === 'submission' ? 'active' : ''}`}
+              onClick={() => setActiveBottomTab('submission')}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+              <span>Submission</span>
+            </button>
+          )}
+          
+          <button 
+            className={`io-tab-btn ${activeBottomTab === 'custom' ? 'active' : ''}`}
+            onClick={() => setActiveBottomTab('custom')}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+            <span>Custom Input</span>
+          </button>
+        </div>
+
+        {/* Maximize & Close Drawer Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '8px' }}>
+          {onToggleMaximize && (
+            <button 
+              className="btn-glass btn-glass-icon" 
+              style={{ width: '26px', height: '26px', padding: 0 }} 
+              onClick={onToggleMaximize}
+              title={isMaximized ? "Restore Panel Height" : "Maximize Panel"}
+            >
+              {isMaximized ? (
+                <Minimize2 className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+              )}
+            </button>
+          )}
+
+          <button 
+            className="btn-glass btn-glass-icon" 
+            style={{ width: '26px', height: '26px', padding: 0 }} 
+            onClick={onClose}
+            title="Hide Terminal"
+          >
+            <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Panel Body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        
+        {activeBottomTab === 'testcases' && currentProblem && (
+          <div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              {(currentProblem.testcases || []).map(tc => (
+                <div 
+                  key={tc.id} 
+                  onClick={() => setActiveTestCaseId(tc.id)} 
+                  className={`btn-glass ${activeTestCaseId === tc.id ? 'active' : ''}`}
+                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                    Custom Input
-                </button>
+                  {tc.name}
+                </div>
+              ))}
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
-                {activeBottomTab === 'testcases' && currentProblem && (
-                    <div>
-                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                            {(currentProblem.testcases || []).map(tc => (
-                                <div 
-                                    key={tc.id} 
-                                    onClick={() => setActiveTestCaseId(tc.id)} 
-                                    style={{ 
-                                        padding: '6px 12px', 
-                                        borderRadius: '6px', 
-                                        cursor: 'pointer', 
-                                        backgroundColor: activeTestCaseId === tc.id ? 'rgba(88,166,255,0.1)' : 'rgba(255,255,255,0.05)', 
-                                        color: activeTestCaseId === tc.id ? '#58a6ff' : '#8b949e', 
-                                        fontWeight: 'bold', 
-                                        fontSize: '0.85rem' 
-                                    }}
-                                >
-                                    {tc.name}
-                                </div>
-                            ))}
-                        </div>
-                        
-                        {(currentProblem.testcases || []).filter(tc => tc.id === activeTestCaseId).map(tc => (
-                            <div key={tc.id}>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 'bold' }}>
-                                        Input Variables:
-                                    </div>
-                                    <pre style={{ backgroundColor: '#0d1117', padding: '12px', borderRadius: '6px', margin: 0, fontFamily: 'JetBrains Mono, monospace', color: '#e1e4e8', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        {tc.displayInput}
-                                    </pre>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 'bold' }}>
-                                        Expected Output:
-                                    </div>
-                                    <pre style={{ backgroundColor: '#0d1117', padding: '12px', borderRadius: '6px', margin: 0, fontFamily: 'JetBrains Mono, monospace', color: '#e1e4e8', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        {tc.expectedOutput}
-                                    </pre>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+            {(currentProblem.testcases || []).filter(tc => tc.id === activeTestCaseId).map(tc => (
+              <div key={tc.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+                    Input Variables:
+                  </div>
+                  <pre style={{ backgroundColor: '#090b10', padding: '10px 14px', borderRadius: '8px', margin: 0, fontFamily: 'JetBrains Mono, monospace', color: '#e2e8f0', fontSize: '0.82rem', border: '1px solid var(--border-editor)' }}>
+                    {tc.displayInput}
+                  </pre>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+                    Expected Output:
+                  </div>
+                  <pre style={{ backgroundColor: '#090b10', padding: '10px 14px', borderRadius: '8px', margin: 0, fontFamily: 'JetBrains Mono, monospace', color: '#e2e8f0', fontSize: '0.82rem', border: '1px solid var(--border-editor)' }}>
+                    {tc.expectedOutput}
+                  </pre>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-                {activeBottomTab === 'submission' && currentProblem && (
-                    <div style={{ height: '100%', padding: '10px' }}>
-                        <SubmissionReport 
-                            isSubmitting={isSubmitting} 
-                            result={submissionResult} 
-                        />
-                    </div>
-                )}
+        {activeBottomTab === 'submission' && currentProblem && (
+          <div style={{ height: '100%' }}>
+            <SubmissionReport isSubmitting={isSubmitting} result={submissionResult} />
+          </div>
+        )}
 
-                {activeBottomTab === 'console' && (
-                    <div className={`terminal-output ${!output ? 'placeholder' : ''}`} style={{ height: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
-                                Standard Output / Errors
-                            </span>
-                            <button className="btn btn-secondary" style={{ fontSize: '0.7rem', height: '24px', padding: '0 8px' }} onClick={() => setOutput("")}>
-                                Clear
-                            </button>
-                        </div>
-                        {renderFormattedOutput(output)}
-                    </div>
-                )}
-
-                {activeBottomTab === 'custom' && (
-                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 'bold' }}>
-                            Raw Standard Input (STDIN):
-                        </div>
-                        <textarea 
-                            className="terminal-input" 
-                            style={{ flex: 1 }} 
-                            value={userInput} 
-                            onChange={(e) => setUserInput(e.target.value)} 
-                            placeholder="Type raw input here..." 
-                        />
-                    </div>
-                )}
+        {activeBottomTab === 'console' && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
+                Standard Output / Sandbox Log
+              </span>
+              {output && (
+                <button 
+                  className="btn-glass" 
+                  style={{ height: '24px', padding: '0 8px', fontSize: '0.72rem' }} 
+                  onClick={() => setOutput("")}
+                >
+                  <Trash2 className="w-3 h-3 mr-1 text-rose-400" />
+                  <span>Clear</span>
+                </button>
+              )}
             </div>
-        </div>
-    );
+            <div className="terminal-box" style={{ flex: 1, borderRadius: '8px', border: '1px solid var(--border-editor)' }}>
+              {renderFormattedOutput(output)}
+            </div>
+          </div>
+        )}
+
+        {activeBottomTab === 'custom' && (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '700', textTransform: 'uppercase' }}>
+              Standard Input (STDIN):
+            </div>
+            <textarea 
+              className="terminal-box" 
+              style={{ flex: 1, borderRadius: '8px', border: '1px solid var(--border-editor)' }} 
+              value={userInput} 
+              onChange={(e) => setUserInput(e.target.value)} 
+              placeholder="Type or paste input variables to be sent to STDIN when running..." 
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default BottomPanel;

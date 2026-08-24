@@ -13,6 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import * as Y from 'yjs';
 import { MonacoBinding } from 'y-monaco';
 import { Awareness } from 'y-protocols/awareness';
+import { FilePlus, Code2 } from 'lucide-react';
 
 import { getFileIcon } from './FileExplorer';
 import './CodeEditor.css'; 
@@ -32,6 +33,7 @@ import EditorSidebar from './components/EditorSidebar';
 import ProblemDescriptionPanel from './components/ProblemDescriptionPanel';
 import BottomPanel from './components/BottomPanel';
 import EditorModals from './components/EditorModals';
+import PageLoader from '../../components/common/PageLoader';
 
 const loadedRooms = new Set();
 
@@ -43,6 +45,11 @@ const CodeEditor = () => {
     const [username] = useState(() => location.state?.username || localStorage.getItem('username') || '');
     const [roomName, setRoomName] = useState(() => location.state?.roomName || "Syncing Workspace...");
 
+    const [isInterviewMode, setIsInterviewMode] = useState(() => {
+        const mode = location.state?.mode || location.state?.roomType;
+        return mode === 'INTERVIEW' || mode === 'interview';
+    });
+
     const [files, setFiles] = useState({});
     const [openFiles, setOpenFiles] = useState([]);
     const [activeFile, setActiveFile] = useState(null);
@@ -51,6 +58,9 @@ const CodeEditor = () => {
     const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
     const [problemSearch, setProblemSearch] = useState("");
     
+    const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
+    const [isPanelMaximized, setIsPanelMaximized] = useState(false);
+    const [panelSizes, setPanelSizes] = useState([65, 35]);
     const [activeBottomTab, setActiveBottomTab] = useState("console"); 
     const [activeTestCaseId, setActiveTestCaseId] = useState(1);
 
@@ -79,7 +89,6 @@ const CodeEditor = () => {
     const [messages, setMessages] = useState([]);
     const [chatMsg, setChatMsg] = useState("");
     const [typingUsers, setTypingUsers] = useState([]);
-    const [splitDirection, setSplitDirection] = useState(window.innerWidth < 900 ? 'vertical' : 'horizontal');
     const [wsConnected, setWsConnected] = useState(false);
 
     const [editorTheme, setEditorTheme] = useState(() => localStorage.getItem('editorTheme') || 'vs-dark');
@@ -92,6 +101,12 @@ const CodeEditor = () => {
     const [isSecretsModalOpen, setIsSecretsModalOpen] = useState(false);
     const [secrets, setSecrets] = useState([{ key: '', value: '' }]);
     const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+
+    const [isLangChangeModalOpen, setIsLangChangeModalOpen] = useState(false);
+    const [pendingLangChange, setPendingLangChange] = useState(null);
+
+    // Leaving workspace transition loader state
+    const [isLeavingWorkspace, setIsLeavingWorkspace] = useState(false);
 
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
@@ -115,7 +130,7 @@ const CodeEditor = () => {
     
     const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
     const loadedFilesRef = useRef({});
-    const ydocInitialized = useRef(false);
+    const initialSyncRequested = useRef(false);
 
     const isHost = currentUserRole === 'HOST';
     const canEdit = currentUserRole === 'HOST' || currentUserRole === 'EDITOR';
@@ -126,13 +141,24 @@ const CodeEditor = () => {
 
     useEffect(() => {
         if (currentProblem) {
+            setIsInterviewMode(true);
+            setIsBottomPanelOpen(true);
             setActiveBottomTab("testcases");
             setActiveTestCaseId(1);
             setSubmissionResult(null); 
-        } else {
-            setActiveBottomTab("console");
         }
     }, [currentProblem]);
+
+    useEffect(() => {
+        const fileKeys = Object.keys(files);
+        if (!activeFile && fileKeys.length > 0) {
+            const nextFile = openFiles.length > 0 ? openFiles[openFiles.length - 1] : fileKeys[0];
+            setActiveFile(nextFile);
+            if (!openFiles.includes(nextFile)) {
+                setOpenFiles(prev => [...prev, nextFile]);
+            }
+        }
+    }, [files, activeFile, openFiles]);
 
     const getTooltip = (requiredRole) => {
         if (requiredRole === 'HOST' && !isHost) return "Only the host can perform this action";
@@ -148,21 +174,30 @@ const CodeEditor = () => {
         return userColorMap.current[user];
     };
 
+    // 1. Fetch initial workspace data with intentional loading buffer
     useEffect(() => {
         let isMounted = true;
         const fetchWorkspaceData = async () => {
             if (loadedRooms.has(roomId)) return;
             loadedRooms.add(roomId);
+
+            const minimumLoadDelay = new Promise(resolve => setTimeout(resolve, 1400));
+
             try {
-                const metaRes = await axios.get(`${API_BASE_URL}/api/workspace/${roomId}`);
-                if (isMounted && metaRes.data?.name) {
-                    setRoomName(metaRes.data.name);
+                const [metaRes, loadRes] = await Promise.all([
+                    axios.get(`${API_BASE_URL}/api/workspace/${roomId}`).catch(() => ({ data: null })),
+                    axios.get(`${API_BASE_URL}/api/workspace/${roomId}/load`).catch(() => ({ data: {} })),
+                    minimumLoadDelay
+                ]);
+
+                if (!isMounted) return;
+
+                if (metaRes.data?.name) setRoomName(metaRes.data.name);
+                if (metaRes.data?.type === 'INTERVIEW' || metaRes.data?.roomType === 'INTERVIEW' || metaRes.data?.mode === 'INTERVIEW') {
+                    setIsInterviewMode(true);
                 }
                 
-                const response = await axios.get(`${API_BASE_URL}/api/workspace/${roomId}/load`);
-                if (!isMounted) return;
-                
-                loadedFilesRef.current = response.data || {};
+                loadedFilesRef.current = loadRes.data || {};
                 
                 if (Object.keys(loadedFilesRef.current).length > 0) {
                     const newFilesState = {};
@@ -176,11 +211,28 @@ const CodeEditor = () => {
                     const firstFile = Object.keys(newFilesState)[0];
                     setActiveFile(firstFile);
                     setOpenFiles([firstFile]);
+                } else {
+                    const defaultFile = "src/Main.java";
+                    const defaultLang = "java";
+                    setFiles({
+                        [defaultFile]: { name: defaultFile, language: defaultLang }
+                    });
+                    setActiveFile(defaultFile);
+                    setOpenFiles([defaultFile]);
                 }
             } catch (error) {
                 if (isMounted) {
+                    await minimumLoadDelay;
                     loadedRooms.delete(roomId);
                     setRoomName(prev => prev === "Syncing Workspace..." ? "Dev Workspace" : prev);
+
+                    const defaultFile = "src/Main.java";
+                    const defaultLang = "java";
+                    setFiles({
+                        [defaultFile]: { name: defaultFile, language: defaultLang }
+                    });
+                    setActiveFile(defaultFile);
+                    setOpenFiles([defaultFile]);
                 }
             } finally {
                 if (isMounted) setIsWorkspaceLoaded(true);
@@ -214,103 +266,108 @@ const CodeEditor = () => {
     }, [roomId, username]);
 
     const applyDecorations = useCallback((fileName) => {
-        if (!editorRef.current || !monacoRef.current) return;
+        if (!fileName || !editorRef.current || !monacoRef.current) return;
         
         const monaco = monacoRef.current;
         const editor = editorRef.current;
         const errors = editorErrors[fileName] || [];
 
-        const newDecorations = errors.map(err => ({
-            range: new monaco.Range(err.line, err.col || 1, err.line, Number.MAX_VALUE),
-            options: {
-                inlineClassName: err.severity === 'error' ? 'diagnostic-error' : err.severity === 'warning' ? 'diagnostic-warning' : 'diagnostic-info',
-                hoverMessage: { value: `**${err.severity.toUpperCase()}**: ${err.message}` },
-                overviewRuler: { color: getSeverityColor(err.severity), position: monaco.editor.OverviewRulerLane.Right },
-                minimap: { color: getSeverityColor(err.severity), position: monaco.editor.MinimapPosition.Inline },
-                glyphMarginClassName: err.severity === 'error' ? 'diagnostic-glyph-error' : 'diagnostic-glyph-warning',
-            }
-        }));
-        
-        decorationIds.current = editor.deltaDecorations(decorationIds.current, newDecorations);
+        try {
+            const newDecorations = errors.map(err => ({
+                range: new monaco.Range(err.line, err.col || 1, err.line, Number.MAX_VALUE),
+                options: {
+                    inlineClassName: err.severity === 'error' ? 'diagnostic-error' : err.severity === 'warning' ? 'diagnostic-warning' : 'diagnostic-info',
+                    hoverMessage: { value: `**${err.severity.toUpperCase()}**: ${err.message}` },
+                    overviewRuler: { color: getSeverityColor(err.severity), position: monaco.editor.OverviewRulerLane.Right },
+                    minimap: { color: getSeverityColor(err.severity), position: monaco.editor.MinimapPosition.Inline },
+                    glyphMarginClassName: err.severity === 'error' ? 'diagnostic-glyph-error' : 'diagnostic-glyph-warning',
+                }
+            }));
+            
+            decorationIds.current = editor.deltaDecorations(decorationIds.current, newDecorations);
 
-        editor.changeViewZones(accessor => {
-            viewZoneIds.current.forEach(id => accessor.removeZone(id));
-            viewZoneIds.current = [];
+            editor.changeViewZones(accessor => {
+                viewZoneIds.current.forEach(id => accessor.removeZone(id));
+                viewZoneIds.current = [];
 
-            errors.forEach(err => {
-                const color = getSeverityColor(err.severity);
-                const icon = err.severity === 'error' ? '●' : '▲';
-                const marginDomNode = document.createElement('div');
-                const domNode = document.createElement('div');
-                
-                domNode.style.cssText = `
-                    display: flex; 
-                    align-items: center; 
-                    gap: 6px; 
-                    padding: 1px 12px 1px 12px; 
-                    font-family: JetBrains Mono, monospace; 
-                    font-size: 12px; 
-                    color: ${color}; 
-                    background: ${color}11; 
-                    border-left: 2px solid ${color}66; 
-                    white-space: nowrap; 
-                    overflow: hidden; 
-                    text-overflow: ellipsis; 
-                    cursor: pointer; 
-                    box-sizing: border-box; 
-                    width: 100%; 
-                    height: 100%;
-                `;
-                
-                domNode.title = `Line ${err.line}: ${err.message}`;
-                
-                const iconSpan = document.createElement('span');
-                iconSpan.style.opacity = '0.7';
-                iconSpan.style.fontSize = '10px';
-                iconSpan.style.marginRight = '4px';
-                iconSpan.textContent = icon;
-                
-                const textNode = document.createTextNode(err.message);
-                domNode.appendChild(iconSpan);
-                domNode.appendChild(textNode);
+                errors.forEach(err => {
+                    const color = getSeverityColor(err.severity);
+                    const icon = err.severity === 'error' ? '●' : '▲';
+                    const marginDomNode = document.createElement('div');
+                    const domNode = document.createElement('div');
+                    
+                    domNode.style.cssText = `
+                        display: flex; 
+                        align-items: center; 
+                        gap: 6px; 
+                        padding: 1px 12px 1px 12px; 
+                        font-family: JetBrains Mono, monospace; 
+                        font-size: 12px; 
+                        color: ${color}; 
+                        background: ${color}11; 
+                        border-left: 2px solid ${color}66; 
+                        white-space: nowrap; 
+                        overflow: hidden; 
+                        text-overflow: ellipsis; 
+                        cursor: pointer; 
+                        box-sizing: border-box; 
+                        width: 100%; 
+                        height: 100%;
+                    `;
+                    
+                    domNode.title = `Line ${err.line}: ${err.message}`;
+                    
+                    const iconSpan = document.createElement('span');
+                    iconSpan.style.opacity = '0.7';
+                    iconSpan.style.fontSize = '10px';
+                    iconSpan.style.marginRight = '4px';
+                    iconSpan.textContent = icon;
+                    
+                    const textNode = document.createTextNode(err.message);
+                    domNode.appendChild(iconSpan);
+                    domNode.appendChild(textNode);
 
-                domNode.onclick = () => { 
-                    editor.revealLineNearTop(err.line); 
-                    editor.setPosition({ lineNumber: err.line, column: 1 }); 
-                    editor.focus(); 
-                };
+                    domNode.onclick = () => { 
+                        editor.revealLineNearTop(err.line); 
+                        editor.setPosition({ lineNumber: err.line, column: 1 }); 
+                        editor.focus(); 
+                    };
 
-                const zoneId = accessor.addZone({ 
-                    afterLineNumber: err.line, 
-                    afterColumn: Number.MAX_VALUE, 
-                    heightInLines: 1, 
-                    minWidthInPx: 200, 
-                    domNode, 
-                    marginDomNode 
+                    const zoneId = accessor.addZone({ 
+                        afterLineNumber: err.line, 
+                        afterColumn: Number.MAX_VALUE, 
+                        heightInLines: 1, 
+                        minWidthInPx: 200, 
+                        domNode, 
+                        marginDomNode 
+                    });
+                    
+                    viewZoneIds.current.push(zoneId);
                 });
-                
-                viewZoneIds.current.push(zoneId);
             });
-        });
+        } catch (e) {
+            console.warn("Decoration render skipped:", e);
+        }
     }, [editorErrors]);
 
     useEffect(() => {
+        if (!activeFile) {
+            decorationIds.current = [];
+            viewZoneIds.current = [];
+            return;
+        }
         applyDecorations(activeFile);
         return () => {
             if (editorRef.current) {
-                editorRef.current.changeViewZones(accessor => { 
-                    viewZoneIds.current.forEach(id => accessor.removeZone(id)); 
-                    viewZoneIds.current = []; 
-                });
+                try {
+                    editorRef.current.changeViewZones(accessor => { 
+                        viewZoneIds.current.forEach(id => accessor.removeZone(id)); 
+                        viewZoneIds.current = []; 
+                    });
+                } catch (e) {}
             }
         };
     }, [activeFile, editorErrors, applyDecorations]);
-
-    useEffect(() => {
-        const handleResize = () => setSplitDirection(window.innerWidth < 900 ? 'vertical' : 'horizontal');
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     useEffect(() => {
         return () => { 
@@ -323,7 +380,7 @@ const CodeEditor = () => {
         
         if (file !== activeFile) {
             if (remoteCursors.current[user] && editorRef.current) {
-                editorRef.current.removeContentWidget(remoteCursors.current[user]);
+                try { editorRef.current.removeContentWidget(remoteCursors.current[user]); } catch (e) {}
             }
             return;
         }
@@ -334,7 +391,7 @@ const CodeEditor = () => {
         }
         
         if (remoteCursors.current[user]) {
-            editorRef.current.removeContentWidget(remoteCursors.current[user]);
+            try { editorRef.current.removeContentWidget(remoteCursors.current[user]); } catch (e) {}
         }
         
         const userColor = getUserColor(user);
@@ -364,35 +421,43 @@ const CodeEditor = () => {
             })
         };
         
-        editorRef.current.addContentWidget(widget);
-        remoteCursors.current[user] = widget;
+        try {
+            editorRef.current.addContentWidget(widget);
+            remoteCursors.current[user] = widget;
+        } catch (e) {}
     };
 
     const bindMonacoToYjs = useCallback((fileName, editor = editorRef.current) => {
-        if (!editor) return;
-        
         if (ymonacoBindingRef.current) { 
-            ymonacoBindingRef.current.destroy(); 
+            try { ymonacoBindingRef.current.destroy(); } catch (e) {}
             ymonacoBindingRef.current = null; 
         }
+
+        if (!fileName || !editor) return;
         
         const ytext = ydocRef.current.getText(fileName);
-        const currentYjsText = ytext.toString();
         
-        if (currentYjsText.length > 0 && editor.getValue() === '') {
-            editor.setValue(currentYjsText);
+        try {
+            ymonacoBindingRef.current = new MonacoBinding(
+                ytext, 
+                editor.getModel(), 
+                new Set([editor]), 
+                awarenessRef.current
+            );
+        } catch (err) {
+            console.warn("Binding initialization warning:", err);
         }
-        
-        ymonacoBindingRef.current = new MonacoBinding(
-            ytext, 
-            editor.getModel(), 
-            new Set([editor]), 
-            awarenessRef.current
-        );
     }, []);
 
     useEffect(() => {
-        if (activeFile && editorRef.current) {
+        if (!activeFile) {
+            if (ymonacoBindingRef.current) {
+                try { ymonacoBindingRef.current.destroy(); } catch (e) {}
+                ymonacoBindingRef.current = null;
+            }
+            return;
+        }
+        if (editorRef.current) {
             bindMonacoToYjs(activeFile);
         }
     }, [activeFile, bindMonacoToYjs]);
@@ -404,6 +469,15 @@ const CodeEditor = () => {
 
         monaco.editor.setTheme(editorTheme);
 
+        if (document.fonts) {
+            document.fonts.ready.then(() => {
+                try {
+                    monaco.editor.remeasureFonts();
+                    editor.layout();
+                } catch (e) {}
+            });
+        }
+
         monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({ 
             noSemanticValidation: false, 
             noSyntaxValidation: false 
@@ -413,31 +487,6 @@ const CodeEditor = () => {
             noSemanticValidation: false, 
             noSyntaxValidation: false 
         });
-        
-        monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ 
-            target: monaco.languages.typescript.ScriptTarget.ES2020, 
-            allowNonTsExtensions: true, 
-            checkJs: true 
-        });
-        
-        monaco.languages.typescript.typescriptDefaults.setCompilerOptions({ 
-            target: monaco.languages.typescript.ScriptTarget.ES2020, 
-            allowNonTsExtensions: true, 
-            strict: true 
-        });
-
-        if (!document.getElementById('diagnostic-styles')) {
-            const style = document.createElement('style');
-            style.id = 'diagnostic-styles';
-            style.textContent = `
-                .diagnostic-error { text-decoration: underline wavy #ff6b6b; text-underline-offset: 3px; } 
-                .diagnostic-warning { text-decoration: underline wavy #f0883e; text-underline-offset: 3px; } 
-                .diagnostic-info { text-decoration: underline wavy #58a6ff; text-underline-offset: 3px; } 
-                .diagnostic-glyph-error::before { content: '●'; color: #ff6b6b; font-size: 10px; } 
-                .diagnostic-glyph-warning::before { content: '▲'; color: #f0883e; font-size: 10px; }
-            `;
-            document.head.appendChild(style);
-        }
 
         if (activeFile) {
             bindMonacoToYjs(activeFile, editor);
@@ -515,6 +564,7 @@ const CodeEditor = () => {
     const handlePushProblem = (problemId) => {
         if (stompClient.current?.connected && isHost) {
             setCurrentProblem(MOCK_PROBLEMS[problemId]);
+            setIsInterviewMode(true);
             stompClient.current.send(`/app/code/${roomId}`, {}, JSON.stringify({ 
                 sender: username, 
                 type: "PROBLEM_SYNC", 
@@ -602,6 +652,7 @@ const CodeEditor = () => {
                             setCurrentProblem(null);
                         } else if (MOCK_PROBLEMS[body.fileName]) {
                             setCurrentProblem(MOCK_PROBLEMS[body.fileName]);
+                            setIsInterviewMode(true);
                             if (body.sender !== username) {
                                 toast(`The Host assigned a new problem: ${MOCK_PROBLEMS[body.fileName].title}`, { 
                                     icon: '📝', 
@@ -618,13 +669,8 @@ const CodeEditor = () => {
                             delete n[body.fileName]; 
                             return n; 
                         });
-                        setOpenFiles(prev => { 
-                            const n = prev.filter(f => f !== body.fileName); 
-                            if (activeFile === body.fileName) {
-                                setActiveFile(n.length > 0 ? n[n.length - 1] : null);
-                            }
-                            return n; 
-                        });
+                        setOpenFiles(prev => prev.filter(f => f !== body.fileName));
+                        setActiveFile(currentActive => currentActive === body.fileName ? null : currentActive);
                         setEditorErrors(prev => { 
                             const n = { ...prev }; 
                             delete n[body.fileName]; 
@@ -641,61 +687,59 @@ const CodeEditor = () => {
                                 language: body.language 
                             } 
                         }));
+                        setOpenFiles(prev => prev.includes(body.fileName) ? prev : [...prev, body.fileName]);
+                        setActiveFile(body.fileName);
                     }
                 });
 
                 client.subscribe(`/topic/users/${roomId}`, (msg) => {
                     const body = JSON.parse(msg.body);
-                    
-                    if (!ydocInitialized.current) {
-                        const me = body.users?.find(u => u.username === username);
+
+                    if (body.users) {
+                        body.users.forEach(u => getUserColor(u.username));
+                        setUsers(body.users);
+                        const me = body.users.find(u => u.username === username);
                         if (me) {
-                            if (body.users.length === 1) {
-                                ydocRef.current.transact(() => {
-                                    const dbFiles = Object.keys(loadedFilesRef.current);
-                                    if (dbFiles.length > 0) {
-                                        dbFiles.forEach(fileName => { 
-                                            const ytext = ydocRef.current.getText(fileName); 
-                                            if (ytext.length === 0) {
-                                                ytext.insert(0, loadedFilesRef.current[fileName]); 
-                                            }
-                                        });
-                                    } else {
-                                        const ytext = ydocRef.current.getText("src/Main.java");
-                                        if (ytext.length === 0) {
-                                            ytext.insert(0, CODE_SNIPPETS["java"]);
-                                        }
-                                    }
-                                });
-                            } else {
-                                client.send(`/app/yjs/${roomId}`, {}, JSON.stringify({ 
-                                    sender: username, 
-                                    type: 'REQUEST_SYNC' 
-                                }));
-                                
-                                setTimeout(() => {
-                                    if (ydocRef.current.getText(activeFile || "src/Main.java").length === 0) {
-                                        ydocRef.current.transact(() => {
-                                            const dbFiles = Object.keys(loadedFilesRef.current);
-                                            if (dbFiles.length > 0) {
-                                                dbFiles.forEach(fileName => { 
-                                                    const ytext = ydocRef.current.getText(fileName); 
-                                                    if (ytext.length === 0) {
-                                                        ytext.insert(0, loadedFilesRef.current[fileName]); 
-                                                    }
-                                                });
-                                            } else {
-                                                const ytext = ydocRef.current.getText("src/Main.java");
+                            setCurrentUserRole(me.role);
+                            isHostRef.current = me.role === 'HOST';
+
+                            if (!initialSyncRequested.current) {
+                                initialSyncRequested.current = true;
+                                if (me.role === 'HOST') {
+                                    ydocRef.current.transact(() => {
+                                        const dbFiles = Object.keys(loadedFilesRef.current);
+                                        if (dbFiles.length > 0) {
+                                            dbFiles.forEach(fileName => { 
+                                                const ytext = ydocRef.current.getText(fileName); 
                                                 if (ytext.length === 0) {
-                                                    ytext.insert(0, CODE_SNIPPETS["java"]);
+                                                    ytext.insert(0, loadedFilesRef.current[fileName]); 
                                                 }
+                                            });
+                                        } else {
+                                            const ytext = ydocRef.current.getText("src/Main.java");
+                                            if (ytext.length === 0) {
+                                                ytext.insert(0, CODE_SNIPPETS["java"]);
                                             }
-                                        });
-                                    }
-                                }, 3000);
+                                        }
+                                    });
+                                } else {
+                                    client.send(`/app/yjs/${roomId}`, {}, JSON.stringify({ 
+                                        sender: username, 
+                                        type: 'REQUEST_SYNC' 
+                                    }));
+                                }
                             }
-                            ydocInitialized.current = true;
                         }
+
+                        const activeUsernames = body.users.map(u => u.username);
+                        Object.keys(remoteCursors.current).forEach(u => {
+                            if (!activeUsernames.includes(u)) {
+                                if (editorRef.current) {
+                                    try { editorRef.current.removeContentWidget(remoteCursors.current[u]); } catch (e) {}
+                                }
+                                delete remoteCursors.current[u];
+                            }
+                        });
                     }
 
                     if (body.type === 'KICK') {
@@ -718,22 +762,6 @@ const CodeEditor = () => {
                             notifiedUsers.current.add(toastKey); 
                             setTimeout(() => notifiedUsers.current.delete(toastKey), 4000);
                         }
-                    }
-                    
-                    if (body.users) {
-                        body.users.forEach(u => getUserColor(u.username));
-                        setUsers(body.users);
-                        const me = body.users.find(u => u.username === username);
-                        if (me) setCurrentUserRole(me.role);
-                        const activeUsernames = body.users.map(u => u.username);
-                        Object.keys(remoteCursors.current).forEach(u => {
-                            if (!activeUsernames.includes(u)) {
-                                if (editorRef.current) {
-                                    editorRef.current.removeContentWidget(remoteCursors.current[u]);
-                                }
-                                delete remoteCursors.current[u];
-                            }
-                        });
                     }
                 });
 
@@ -939,8 +967,8 @@ const CodeEditor = () => {
             toast.error("You are in read-only mode"); 
             return; 
         }
-        if (Object.keys(files).length === 1) { 
-            toast.error("Cannot delete the last file.", { icon: '⚠️' }); 
+        if (Object.keys(files).length <= 1) { 
+            toast.error("Cannot delete the only remaining file in workspace.", { icon: '⚠️' }); 
             return; 
         }
         setFileToDelete(fileName); 
@@ -950,6 +978,13 @@ const CodeEditor = () => {
     const confirmDeleteFile = () => {
         if (!fileToDelete || !canEdit) return;
         
+        if (Object.keys(files).length <= 1) {
+            toast.error("Cannot delete the only remaining file in workspace.", { icon: '⚠️' });
+            setIsDeleteModalOpen(false);
+            setFileToDelete(null);
+            return;
+        }
+
         ydocRef.current.transact(() => { 
             const ytext = ydocRef.current.getText(fileToDelete); 
             if (ytext.length > 0) {
@@ -957,19 +992,21 @@ const CodeEditor = () => {
             }
         });
         
-        setFiles(prev => { 
-            const n = { ...prev }; 
-            delete n[fileToDelete]; 
-            return n; 
-        });
-        
-        setOpenFiles(prev => { 
-            const n = prev.filter(f => f !== fileToDelete); 
-            if (activeFile === fileToDelete) {
-                setActiveFile(n.length > 0 ? n[n.length - 1] : null);
-            }
-            return n; 
-        });
+        const updatedFiles = { ...files };
+        delete updatedFiles[fileToDelete];
+
+        const updatedOpenFiles = openFiles.filter(f => f !== fileToDelete);
+        const remainingKeys = Object.keys(updatedFiles);
+
+        setFiles(updatedFiles);
+        setOpenFiles(updatedOpenFiles);
+
+        if (activeFile === fileToDelete) {
+            const nextActive = updatedOpenFiles.length > 0 
+                ? updatedOpenFiles[updatedOpenFiles.length - 1] 
+                : (remainingKeys.length > 0 ? remainingKeys[0] : null);
+            setActiveFile(nextActive);
+        }
         
         setEditorErrors(prev => { 
             const n = { ...prev }; 
@@ -990,37 +1027,118 @@ const CodeEditor = () => {
         setFileToDelete(null);
     };
 
+    const applyLanguageChange = (newLang) => {
+        if (!activeFile) return;
+
+        const newExt = getExtension(newLang);
+        let baseName = activeFile;
+        if (baseName.includes('.')) {
+            baseName = baseName.substring(0, baseName.lastIndexOf('.'));
+        }
+        const newFileName = `${baseName}.${newExt}`;
+        const newCode = CODE_SNIPPETS[newLang] || `// Start coding in ${newLang}...`;
+        const oldFile = activeFile;
+
+        if (newFileName !== oldFile) {
+            ydocRef.current.transact(() => {
+                const oldYText = ydocRef.current.getText(oldFile);
+                if (oldYText.length > 0) {
+                    oldYText.delete(0, oldYText.length);
+                }
+                const newYText = ydocRef.current.getText(newFileName);
+                if (newYText.length > 0) {
+                    newYText.delete(0, newYText.length);
+                }
+                newYText.insert(0, newCode);
+            });
+
+            setFiles(prev => {
+                const next = { ...prev };
+                delete next[oldFile];
+                next[newFileName] = { name: newFileName, language: newLang };
+                return next;
+            });
+
+            setOpenFiles(prev => {
+                return prev.map(f => f === oldFile ? newFileName : f);
+            });
+
+            setActiveFile(newFileName);
+
+            setEditorErrors(prev => {
+                const next = { ...prev };
+                delete next[oldFile];
+                return next;
+            });
+
+            if (stompClient.current?.connected) {
+                stompClient.current.send(`/app/code/${roomId}`, {}, JSON.stringify({ 
+                    sender: username, 
+                    type: "DELETE", 
+                    fileName: oldFile 
+                }));
+                stompClient.current.send(`/app/code/${roomId}`, {}, JSON.stringify({ 
+                    sender: username, 
+                    language: newLang, 
+                    type: "METADATA", 
+                    fileName: newFileName 
+                }));
+            }
+            toast.success(`Renamed to ${newFileName.split('/').pop()} (${newLang})`);
+        } else {
+            ydocRef.current.transact(() => {
+                const ytext = ydocRef.current.getText(oldFile);
+                ytext.delete(0, ytext.length);
+                ytext.insert(0, newCode);
+            });
+
+            setFiles(prev => ({ 
+                ...prev, 
+                [oldFile]: { ...prev[oldFile], language: newLang } 
+            }));
+
+            setEditorErrors(prev => { 
+                const n = { ...prev }; 
+                delete n[oldFile]; 
+                return n; 
+            });
+
+            if (stompClient.current?.connected) {
+                stompClient.current.send(`/app/code/${roomId}`, {}, JSON.stringify({ 
+                    sender: username, 
+                    language: newLang, 
+                    type: "METADATA", 
+                    fileName: oldFile 
+                }));
+            }
+            toast.success(`Switched language to ${newLang}`);
+        }
+    };
+
     const handleLanguageSelect = (e) => {
         if (!isHost || !activeFile) return;
         
         const newLang = e.target.value;
-        const newCode = CODE_SNIPPETS[newLang];
-        
-        ydocRef.current.transact(() => {
-            const ytext = ydocRef.current.getText(activeFile);
-            ytext.delete(0, ytext.length);
-            ytext.insert(0, newCode);
-        });
-        
-        setFiles(prev => ({ 
-            ...prev, 
-            [activeFile]: { ...prev[activeFile], language: newLang } 
-        }));
-        
-        setEditorErrors(prev => { 
-            const n = { ...prev }; 
-            delete n[activeFile]; 
-            return n; 
-        });
-        
-        if (stompClient.current?.connected) {
-            stompClient.current.send(`/app/code/${roomId}`, {}, JSON.stringify({ 
-                sender: username, 
-                language: newLang, 
-                type: "METADATA", 
-                fileName: activeFile 
-            }));
+        const currentLang = files[activeFile]?.language || "plaintext";
+        if (newLang === currentLang) return;
+
+        const currentText = ydocRef.current.getText(activeFile).toString().trim();
+        const defaultSnippet = (CODE_SNIPPETS[currentLang] || "").trim();
+
+        if (currentText.length > 0 && currentText !== defaultSnippet) {
+            setPendingLangChange(newLang);
+            setIsLangChangeModalOpen(true);
+        } else {
+            applyLanguageChange(newLang);
         }
+    };
+
+    const confirmLanguageChange = () => {
+        if (pendingLangChange) {
+            applyLanguageChange(pendingLangChange);
+        }
+        setIsLangChangeModalOpen(false);
+        setPendingLangChange(null);
     };
 
     const handleTypingChange = (e) => {
@@ -1074,8 +1192,9 @@ const CodeEditor = () => {
         if (!activeFile) return;
         
         setIsRunning(true);
-        setOutput("Running...");
+        setIsBottomPanelOpen(true);
         setActiveBottomTab("console"); 
+        setOutput("Executing code in sandbox container...");
         setEditorErrors({});
 
         let inputToRun = userInput;
@@ -1132,7 +1251,7 @@ const CodeEditor = () => {
                 }
             }
         } catch (error) {
-            setOutput("Execution failed.");
+            setOutput("Execution failed: Connection to sandbox runtime error.");
         } finally {
             setIsRunning(false);
         }
@@ -1142,6 +1261,7 @@ const CodeEditor = () => {
         if (!activeFile || !currentProblem) return;
 
         setIsSubmitting(true);
+        setIsBottomPanelOpen(true);
         setSubmissionResult(null);
         setActiveBottomTab("submission"); 
 
@@ -1230,14 +1350,14 @@ const CodeEditor = () => {
     };
 
     const renderFormattedOutput = (text) => {
-        if (!text) return "// Run code to see output...";
+        if (!text) return "// Output will appear here after clicking Run...";
         
         const strText = typeof text === 'string' ? text : JSON.stringify(text, null, 2);
         const lines = strText.split('\n');
         
         return lines.map((line, index) => {
             const isError = /(error|exception|traceback|failed|at\s+[\w.]+\.)/i.test(line);
-            const style = isError ? { color: '#ff6b6b' } : { color: '#e1e4e8' };
+            const style = isError ? { color: '#f87171' } : { color: '#cbd5e1' };
             const match1 = line.match(/([a-zA-Z0-9_/\\-]+\.[a-zA-Z0-9]+):(\d+)/);
             const match2 = line.match(/File "([^"]+)", line (\d+)/);
             const match = match1 || match2;
@@ -1254,7 +1374,7 @@ const CodeEditor = () => {
                         {parts[0]}
                         <span 
                             onClick={() => handleJumpToLine(resolvedFile, lineNumber)} 
-                            style={{ textDecoration: 'underline', cursor: 'pointer', color: '#58a6ff', fontWeight: 'bold' }} 
+                            style={{ textDecoration: 'underline', cursor: 'pointer', color: '#38bdf8', fontWeight: 'bold' }} 
                             title={`Jump to line ${lineNumber} in ${resolvedFile}`}
                         >
                             {fullMatch}
@@ -1280,11 +1400,11 @@ const CodeEditor = () => {
         const warnCount = fileErrors.filter(e => e.severity === 'warning').length;
 
         const badge = errorCount > 0 ? ( 
-            <span style={{ marginLeft: '5px', background: '#ff6b6b', color: '#fff', borderRadius: '8px', fontSize: '0.6rem', padding: '0 5px', fontWeight: 'bold', lineHeight: '16px', flexShrink: 0 }}>
+            <span style={{ marginLeft: '5px', background: '#f87171', color: '#fff', borderRadius: '8px', fontSize: '0.6rem', padding: '0 5px', fontWeight: 'bold', lineHeight: '16px', flexShrink: 0 }}>
                 {errorCount}
             </span>
         ) : warnCount > 0 ? ( 
-            <span style={{ marginLeft: '5px', background: '#f0883e', color: '#fff', borderRadius: '8px', fontSize: '0.6rem', padding: '0 5px', fontWeight: 'bold', lineHeight: '16px', flexShrink: 0 }}>
+            <span style={{ marginLeft: '5px', background: '#fbbf24', color: '#000', borderRadius: '8px', fontSize: '0.6rem', padding: '0 5px', fontWeight: 'bold', lineHeight: '16px', flexShrink: 0 }}>
                 {warnCount}
             </span> 
         ) : null;
@@ -1312,8 +1432,48 @@ const CodeEditor = () => {
     };
 
     const activeFileErrors = editorErrors[activeFile] || [];
-    const splitKey = currentProblem ? '3-pane' : '2-pane';
-    const splitSizes = currentProblem ? [30, 45, 25] : [70, 30];
+
+    const handleToggleMaximize = () => {
+        if (isPanelMaximized) {
+            setPanelSizes([65, 35]);
+            setIsPanelMaximized(false);
+        } else {
+            setPanelSizes([20, 80]);
+            setIsPanelMaximized(true);
+        }
+    };
+
+    // Smooth exit with full transition animation
+    const handleExitWorkspace = async (saveBeforeLeave = false) => {
+        setIsLeaveModalOpen(false);
+        setIsLeavingWorkspace(true);
+
+        if (saveBeforeLeave) {
+            await saveWorkspace();
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        navigate('/');
+    };
+
+    // Render Futuristic Loader while connecting & loading room state
+    if (!isWorkspaceLoaded) {
+        return (
+            <PageLoader 
+                message="Initializing Workspace..." 
+                subtext={`Establishing real-time session as ${username || 'developer'}...`} 
+            />
+        );
+    }
+
+    if (isLeavingWorkspace) {
+        return (
+            <PageLoader 
+                message="Disconnecting from session..." 
+                subtext="Flushing Yjs buffers and returning to Dashboard..." 
+            />
+        );
+    }
 
     return (
         <div className="app-container">
@@ -1329,7 +1489,7 @@ const CodeEditor = () => {
                 isLeaveModalOpen={isLeaveModalOpen}
                 setIsLeaveModalOpen={setIsLeaveModalOpen}
                 saveWorkspace={saveWorkspace}
-                navigate={navigate}
+                navigate={() => handleExitWorkspace(false)}
                 roomId={roomId}
                 username={username}
                 API_BASE_URL={API_BASE_URL}
@@ -1350,6 +1510,11 @@ const CodeEditor = () => {
                 setIsDeleteModalOpen={setIsDeleteModalOpen}
                 fileToDelete={fileToDelete}
                 confirmDeleteFile={confirmDeleteFile}
+                isLangChangeModalOpen={isLangChangeModalOpen}
+                setIsLangChangeModalOpen={setIsLangChangeModalOpen}
+                pendingLangChange={pendingLangChange}
+                confirmLanguageChange={confirmLanguageChange}
+                activeFile={activeFile}
             />
 
             <EditorSidebar 
@@ -1366,6 +1531,7 @@ const CodeEditor = () => {
                 wsConnected={wsConnected}
                 getUserColor={getUserColor}
                 isHost={isHost}
+                canEdit={canEdit}
                 username={username}
                 changeUserRole={changeUserRole}
                 kickTargetUser={kickTargetUser}
@@ -1379,7 +1545,8 @@ const CodeEditor = () => {
                 sendChat={sendChat}
                 copyRoomLink={copyRoomLink}
                 setIsLeaveModalOpen={setIsLeaveModalOpen}
-                navigate={navigate}
+                setIsModalOpen={setIsModalOpen}
+                navigate={() => handleExitWorkspace(false)}
             />
 
             <div className="main-area">
@@ -1389,6 +1556,7 @@ const CodeEditor = () => {
                     setIsSidebarOpen={setIsSidebarOpen}
                     isHost={isHost}
                     canEdit={canEdit}
+                    isInterviewMode={isInterviewMode}
                     activeFile={activeFile}
                     files={files}
                     isQuestionBankOpen={isQuestionBankOpen}
@@ -1413,6 +1581,8 @@ const CodeEditor = () => {
                     isSubmitting={isSubmitting}
                     handleSubmit={handleSubmit}
                     getTooltip={getTooltip}
+                    isBottomPanelOpen={isBottomPanelOpen}
+                    setIsBottomPanelOpen={setIsBottomPanelOpen}
                 />
 
                 <div className="file-tabs">
@@ -1428,93 +1598,245 @@ const CodeEditor = () => {
                 </div>
 
                 {!activeFile ? (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)', color: 'var(--text-muted)' }}>
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: '20px' }}>
-                            <polyline points="16 18 22 12 16 6"></polyline>
-                            <polyline points="8 6 2 12 8 18"></polyline>
-                        </svg>
-                        <h3>Vylop Editor</h3>
-                        <p style={{ fontSize: '0.9rem', marginTop: '10px' }}>Select a file from the explorer to start coding.</p>
+                    <div className="editor-empty-container">
+                        <div className="editor-empty-icon-box">
+                            <Code2 className="w-8 h-8 text-emerald-400" />
+                        </div>
+                        <h3 className="editor-empty-title">No Active File</h3>
+                        <p className="editor-empty-desc">Select a file from the explorer on the left or create a new file to start coding.</p>
+                        {canEdit && (
+                            <button className="btn-solid-emerald" onClick={() => setIsModalOpen(true)}>
+                                <FilePlus className="w-4 h-4 mr-1.5" />
+                                <span>Create File</span>
+                            </button>
+                        )}
                     </div>
                 ) : (
-                    <Split key={splitKey} className={`editor-split ${splitDirection}`} sizes={splitSizes} minSize={250} gutterSize={8} direction={splitDirection}>
-                        
+                    <div className="editor-workspace-container">
                         {currentProblem && (
-                            <ProblemDescriptionPanel currentProblem={currentProblem} />
+                            <div className="problem-panel-drawer">
+                                <ProblemDescriptionPanel currentProblem={currentProblem} />
+                            </div>
                         )}
 
-                        <div className="editor-wrapper" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                            {showMarkdownPreview && files[activeFile]?.language === "markdown" ? (
-                                <Split className="markdown-split" sizes={[50, 50]} minSize={100} gutterSize={8} direction="horizontal" style={{ display: 'flex', flex: 1 }}>
-                                    <div style={{ height: '100%' }}>
-                                        <Editor path={activeFile} height="100%" language="markdown" theme={editorTheme} onMount={handleEditorDidMount} options={{ readOnly: !canEdit, domReadOnly: !canEdit, minimap: { enabled: false }, fontSize: 14, fontFamily: 'JetBrains Mono', automaticLayout: true, wordWrap: 'on', hover: { above: false }, fixedOverflowWidgets: true }} />
+                        <div className="editor-center-pane">
+                            {isBottomPanelOpen ? (
+                                <Split 
+                                    direction="vertical"
+                                    sizes={panelSizes}
+                                    minSize={[120, 100]}
+                                    gutterSize={6}
+                                    className="split-vertical-container"
+                                    onDragEnd={(sizes) => {
+                                        setPanelSizes(sizes);
+                                        if (editorRef.current) editorRef.current.layout();
+                                    }}
+                                    onDrag={() => {
+                                        if (editorRef.current) editorRef.current.layout();
+                                    }}
+                                >
+                                    {/* Top Editor Area */}
+                                    <div className="editor-wrapper" style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
+                                        {showMarkdownPreview && files[activeFile]?.language === "markdown" ? (
+                                            <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                                                <div style={{ flex: 1, height: '100%' }}>
+                                                    <Editor 
+                                                        path={activeFile} 
+                                                        height="100%" 
+                                                        width="100%" 
+                                                        language="markdown" 
+                                                        theme={editorTheme} 
+                                                        onMount={handleEditorDidMount} 
+                                                        options={{ 
+                                                            readOnly: !canEdit, 
+                                                            domReadOnly: !canEdit, 
+                                                            minimap: { enabled: false }, 
+                                                            fontSize: 14, 
+                                                            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+                                                            lineHeight: 22,
+                                                            letterSpacing: 0,
+                                                            cursorBlinking: "smooth",
+                                                            cursorSmoothCaretAnimation: "on",
+                                                            cursorStyle: "line",
+                                                            cursorWidth: 2,
+                                                            automaticLayout: true, 
+                                                            wordWrap: 'on', 
+                                                            hover: { above: false }, 
+                                                            fixedOverflowWidgets: true 
+                                                        }} 
+                                                    />
+                                                </div>
+                                                <div className="markdown-preview" style={{ flex: 1, height: '100%', overflowY: 'auto', padding: '20px', backgroundColor: 'var(--bg-editor-base)', color: 'var(--text-main)', borderLeft: '1px solid var(--border-editor)' }}>
+                                                    <ReactMarkdown>{ydocRef.current.getText(activeFile).toString()}</ReactMarkdown>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ width: '100%', height: '100%' }}>
+                                                <Editor 
+                                                    path={activeFile} 
+                                                    height="100%" 
+                                                    width="100%" 
+                                                    language={files[activeFile]?.language === "cpp" ? "cpp" : files[activeFile]?.language || "plaintext"} 
+                                                    theme={editorTheme} 
+                                                    onMount={handleEditorDidMount} 
+                                                    options={{ 
+                                                        readOnly: !canEdit, 
+                                                        domReadOnly: !canEdit, 
+                                                        minimap: { enabled: false }, 
+                                                        fontSize: 14, 
+                                                        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+                                                        lineHeight: 22,
+                                                        letterSpacing: 0,
+                                                        cursorBlinking: "smooth",
+                                                        cursorSmoothCaretAnimation: "on",
+                                                        cursorStyle: "line",
+                                                        cursorWidth: 2,
+                                                        automaticLayout: true, 
+                                                        formatOnPaste: true, 
+                                                        glyphMargin: true, 
+                                                        hover: { above: false }, 
+                                                        fixedOverflowWidgets: true 
+                                                    }} 
+                                                />
+                                            </div>
+                                        )}
+                                        <div id="vim-status-bar" className="vim-status-bar"></div>
+
+                                        {activeFileErrors.length > 0 && (
+                                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '140px', overflowY: 'auto', backgroundColor: '#0d1117ee', borderTop: '1px solid #ff6b6b44', backdropFilter: 'blur(4px)', zIndex: 10 }}>
+                                                <div style={{ padding: '4px 12px', fontSize: '0.65rem', color: '#ff6b6b', letterSpacing: '0.5px', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#0d1117ee', zIndex: 1 }}>
+                                                    <span>
+                                                        {activeFileErrors.filter(e => e.severity === 'error').length > 0 && `🔴 ${activeFileErrors.filter(e => e.severity === 'error').length} error${activeFileErrors.filter(e => e.severity === 'error').length > 1 ? 's' : ''}`}
+                                                        {activeFileErrors.filter(e => e.severity === 'warning').length > 0 && `  🟡 ${activeFileErrors.filter(e => e.severity === 'warning').length} warning${activeFileErrors.filter(e => e.severity === 'warning').length > 1 ? 's' : ''}`}
+                                                    </span>
+                                                    <button onClick={() => setEditorErrors(prev => { const n = { ...prev }; delete n[activeFile]; return n; })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                                        ✕ Clear
+                                                    </button>
+                                                </div>
+                                                {activeFileErrors.map((err, i) => (
+                                                    <div key={i} onClick={() => handleJumpToLine(activeFile, err.line)} style={{ padding: '3px 12px', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'baseline', color: getSeverityColor(err.severity) }} title={`Jump to line ${err.line}`}>
+                                                        <span style={{ flexShrink: 0, opacity: 0.7 }}>Line {err.line}</span>
+                                                        <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>—</span>
+                                                        <span>{err.message}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="markdown-preview" style={{ height: '100%', overflowY: 'auto', padding: '20px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}>
-                                        <ReactMarkdown>{ydocRef.current.getText(activeFile).toString()}</ReactMarkdown>
+
+                                    {/* Resizable Bottom Panel */}
+                                    <div className="bottom-panel-container" style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
+                                        <BottomPanel 
+                                            currentProblem={currentProblem}
+                                            activeBottomTab={activeBottomTab}
+                                            setActiveBottomTab={setActiveBottomTab}
+                                            activeTestCaseId={activeTestCaseId}
+                                            setActiveTestCaseId={setActiveTestCaseId}
+                                            isSubmitting={isSubmitting}
+                                            submissionResult={submissionResult}
+                                            output={output}
+                                            setOutput={setOutput}
+                                            renderFormattedOutput={renderFormattedOutput}
+                                            userInput={userInput}
+                                            setUserInput={setUserInput}
+                                            onClose={() => setIsBottomPanelOpen(false)}
+                                            isMaximized={isPanelMaximized}
+                                            onToggleMaximize={handleToggleMaximize}
+                                        />
                                     </div>
                                 </Split>
                             ) : (
-                                <div style={{ flex: 1, minHeight: 0, height: '100%' }}>
-                                    <Editor 
-                                        path={activeFile} 
-                                        height="100%" 
-                                        language={files[activeFile]?.language === "cpp" ? "cpp" : files[activeFile]?.language || "plaintext"} 
-                                        theme={editorTheme} 
-                                        onMount={handleEditorDidMount} 
-                                        options={{ 
-                                            readOnly: !canEdit, 
-                                            domReadOnly: !canEdit, 
-                                            minimap: { enabled: false }, 
-                                            fontSize: 14, 
-                                            fontFamily: 'JetBrains Mono', 
-                                            automaticLayout: true, 
-                                            formatOnPaste: true, 
-                                            glyphMargin: true, 
-                                            hover: { above: false }, 
-                                            fixedOverflowWidgets: true 
-                                        }} 
-                                    />
-                                </div>
-                            )}
-                            <div id="vim-status-bar" className="vim-status-bar"></div>
-
-                            {activeFileErrors.length > 0 && (
-                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '140px', overflowY: 'auto', backgroundColor: '#0d1117ee', borderTop: '1px solid #ff6b6b44', backdropFilter: 'blur(4px)', zIndex: 10 }}>
-                                    <div style={{ padding: '4px 12px', fontSize: '0.65rem', color: '#ff6b6b', letterSpacing: '0.5px', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#0d1117ee', zIndex: 1 }}>
-                                        <span>
-                                            {activeFileErrors.filter(e => e.severity === 'error').length > 0 && `🔴 ${activeFileErrors.filter(e => e.severity === 'error').length} error${activeFileErrors.filter(e => e.severity === 'error').length > 1 ? 's' : ''}`}
-                                            {activeFileErrors.filter(e => e.severity === 'warning').length > 0 && `  🟡 ${activeFileErrors.filter(e => e.severity === 'warning').length} warning${activeFileErrors.filter(e => e.severity === 'warning').length > 1 ? 's' : ''}`}
-                                        </span>
-                                        <button onClick={() => setEditorErrors(prev => { const n = { ...prev }; delete n[activeFile]; return n; })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
-                                            ✕ Clear
-                                        </button>
-                                    </div>
-                                    {activeFileErrors.map((err, i) => (
-                                        <div key={i} onClick={() => handleJumpToLine(activeFile, err.line)} style={{ padding: '3px 12px', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'baseline', color: getSeverityColor(err.severity) }} title={`Jump to line ${err.line}`}>
-                                            <span style={{ flexShrink: 0, opacity: 0.7 }}>Line {err.line}</span>
-                                            <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>—</span>
-                                            <span>{err.message}</span>
+                                <div className="editor-wrapper full-height">
+                                    {showMarkdownPreview && files[activeFile]?.language === "markdown" ? (
+                                        <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                                            <div style={{ flex: 1, height: '100%' }}>
+                                                <Editor 
+                                                    path={activeFile} 
+                                                    height="100%" 
+                                                    width="100%" 
+                                                    language="markdown" 
+                                                    theme={editorTheme} 
+                                                    onMount={handleEditorDidMount} 
+                                                    options={{ 
+                                                        readOnly: !canEdit, 
+                                                        domReadOnly: !canEdit, 
+                                                        minimap: { enabled: false }, 
+                                                        fontSize: 14, 
+                                                        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+                                                        lineHeight: 22,
+                                                        letterSpacing: 0,
+                                                        cursorBlinking: "smooth",
+                                                        cursorSmoothCaretAnimation: "on",
+                                                        cursorStyle: "line",
+                                                        cursorWidth: 2,
+                                                        automaticLayout: true, 
+                                                        wordWrap: 'on', 
+                                                        hover: { above: false }, 
+                                                        fixedOverflowWidgets: true 
+                                                    }} 
+                                                />
+                                            </div>
+                                            <div className="markdown-preview" style={{ flex: 1, height: '100%', overflowY: 'auto', padding: '20px', backgroundColor: 'var(--bg-editor-base)', color: 'var(--text-main)', borderLeft: '1px solid var(--border-editor)' }}>
+                                                <ReactMarkdown>{ydocRef.current.getText(activeFile).toString()}</ReactMarkdown>
+                                            </div>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%' }}>
+                                            <Editor 
+                                                path={activeFile} 
+                                                height="100%" 
+                                                width="100%" 
+                                                language={files[activeFile]?.language === "cpp" ? "cpp" : files[activeFile]?.language || "plaintext"} 
+                                                theme={editorTheme} 
+                                                onMount={handleEditorDidMount} 
+                                                options={{ 
+                                                    readOnly: !canEdit, 
+                                                    domReadOnly: !canEdit, 
+                                                    minimap: { enabled: false }, 
+                                                    fontSize: 14, 
+                                                    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+                                                    lineHeight: 22,
+                                                    letterSpacing: 0,
+                                                    cursorBlinking: "smooth",
+                                                    cursorSmoothCaretAnimation: "on",
+                                                    cursorStyle: "line",
+                                                    cursorWidth: 2,
+                                                    automaticLayout: true, 
+                                                    formatOnPaste: true, 
+                                                    glyphMargin: true, 
+                                                    hover: { above: false }, 
+                                                    fixedOverflowWidgets: true 
+                                                }} 
+                                            />
+                                        </div>
+                                    )}
+                                    <div id="vim-status-bar" className="vim-status-bar"></div>
+
+                                    {activeFileErrors.length > 0 && (
+                                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '140px', overflowY: 'auto', backgroundColor: '#0d1117ee', borderTop: '1px solid #ff6b6b44', backdropFilter: 'blur(4px)', zIndex: 10 }}>
+                                            <div style={{ padding: '4px 12px', fontSize: '0.65rem', color: '#ff6b6b', letterSpacing: '0.5px', fontWeight: 'bold', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#0d1117ee', zIndex: 1 }}>
+                                                <span>
+                                                    {activeFileErrors.filter(e => e.severity === 'error').length > 0 && `🔴 ${activeFileErrors.filter(e => e.severity === 'error').length} error${activeFileErrors.filter(e => e.severity === 'error').length > 1 ? 's' : ''}`}
+                                                    {activeFileErrors.filter(e => e.severity === 'warning').length > 0 && `  🟡 ${activeFileErrors.filter(e => e.severity === 'warning').length} warning${activeFileErrors.filter(e => e.severity === 'warning').length > 1 ? 's' : ''}`}
+                                                </span>
+                                                <button onClick={() => setEditorErrors(prev => { const n = { ...prev }; delete n[activeFile]; return n; })} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                                    ✕ Clear
+                                                </button>
+                                            </div>
+                                            {activeFileErrors.map((err, i) => (
+                                                <div key={i} onClick={() => handleJumpToLine(activeFile, err.line)} style={{ padding: '3px 12px', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'baseline', color: getSeverityColor(err.severity) }} title={`Jump to line ${err.line}`}>
+                                                    <span style={{ flexShrink: 0, opacity: 0.7 }}>Line {err.line}</span>
+                                                    <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>—</span>
+                                                    <span>{err.message}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
 
-                        <BottomPanel 
-                            currentProblem={currentProblem}
-                            activeBottomTab={activeBottomTab}
-                            setActiveBottomTab={setActiveBottomTab}
-                            activeTestCaseId={activeTestCaseId}
-                            setActiveTestCaseId={setActiveTestCaseId}
-                            isSubmitting={isSubmitting}
-                            submissionResult={submissionResult}
-                            output={output}
-                            setOutput={setOutput}
-                            renderFormattedOutput={renderFormattedOutput}
-                            userInput={userInput}
-                            setUserInput={setUserInput}
-                        />
-                    </Split>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>

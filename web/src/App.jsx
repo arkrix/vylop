@@ -1,64 +1,67 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster, useToasterStore, toast } from 'react-hot-toast';
 import Home from './features/dashboard/Home';
 import CodeEditor from './features/editor/CodeEditor';
 import Auth from './features/auth/Auth';
-import Dashboard from './features/dashboard/Dashboard';
-import { Toaster } from 'react-hot-toast';
-import './App.css';
+import AuthCallback from './features/auth/AuthCallback';
 
-// 🔐 Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const username = localStorage.getItem("username");
+const ToastLimiter = () => {
+  const { toasts } = useToasterStore();
+  const TOAST_LIMIT = 2;
 
-  if (!username) {
-    return <Navigate to="/auth" replace />;
-  }
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible)
+      .filter((_, i) => i >= TOAST_LIMIT)
+      .forEach((t) => toast.dismiss(t.id));
+  }, [toasts]);
 
-  return children;
+  return null;
 };
 
 function App() {
   return (
-    <>
-      <Toaster position="top-right" />
-      <Router>
-        <Routes>
-          {/* Protected Home Route */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Protected Dashboard Route */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Auth Route */}
-          <Route path="/auth" element={<Auth />} />
-
-          {/* Protected Code Editor Route */}
-          <Route 
-            path="/room/:roomId" 
-            element={
-              <ProtectedRoute>
-                <CodeEditor />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </Router>
-    </>
+    <Router>
+      <ToastLimiter />
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        gutter={8}
+        toastOptions={{
+          duration: 2000,
+          style: {
+            background: '#0e1117',
+            color: '#f1f5f9',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            fontSize: '13.5px',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.6)',
+            padding: '10px 14px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#08090c',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#f87171',
+              secondary: '#08090c',
+            },
+          },
+        }}
+      />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/room/:roomId" element={<CodeEditor />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
