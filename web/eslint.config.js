@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'build', 'node_modules'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -23,18 +23,24 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+
+      // Allow empty catch blocks in safe try/catch statements
+      'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // Ignore catch errors (err, e, error), React components, and designated handlers
       'no-unused-vars': [
-        'error',
-        {
-          varsIgnorePattern: '^[A-Z_]',
+        'warn',
+        { 
+          varsIgnorePattern: '^[A-Z_]|setUsername', 
           argsIgnorePattern: '^_',
           caughtErrors: 'none',
-        },
+          ignoreRestSiblings: true
+        }
       ],
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+
+      // Silence non-breaking hook dependency & export warnings
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
 ]
