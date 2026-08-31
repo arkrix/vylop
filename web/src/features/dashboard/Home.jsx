@@ -26,7 +26,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [username, setUsername] = useState(() => localStorage.getItem('username') || '');
+  const [username] = useState(() => localStorage.getItem('username') || '');
   const [workspaces, setWorkspaces] = useState([]);
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true);
 
@@ -62,6 +62,7 @@ const Home = () => {
         const response = await axios.get(`${API_BASE_URL}/api/workspace/user/${encodeURIComponent(username)}`);
         setWorkspaces(response.data || []);
       } catch (err) {
+        console.warn("Failed to load cloud workspaces:", err);
         setWorkspaces([]);
       } finally {
         setIsLoadingWorkspaces(false);
@@ -160,10 +161,13 @@ const Home = () => {
   };
 
   const handleOpenWorkspace = async (ws) => {
+    const targetRoomName = ws.name || "Cloud Workspace";
+    const targetMode = ws.roomType || 'SANDBOX';
+
     setPageTransition({
       active: true,
       message: "Restoring workspace...",
-      subtext: `Syncing files from cloud archive for "${ws.name || 'Workspace'}"...`
+      subtext: `Syncing files from cloud archive for "${targetRoomName}"...`
     });
 
     await new Promise(resolve => setTimeout(resolve, 1300));
@@ -171,8 +175,8 @@ const Home = () => {
     navigate(`/room/${ws.roomId}`, {
       state: {
         username,
-        roomName: ws.name || "Cloud Workspace",
-        mode: ws.roomType || 'SANDBOX'
+        roomName: targetRoomName,
+        mode: targetMode
       }
     });
   };
@@ -185,11 +189,105 @@ const Home = () => {
       setWorkspaces(prev => prev.filter(w => w.roomId !== deleteTargetId));
       toast.success("Workspace deleted");
     } catch (e) {
+      console.warn("Failed to delete workspace:", e);
       toast.error("Failed to delete workspace");
     } finally {
       setIsDeleteModalOpen(false);
       setDeleteTargetId(null);
     }
+  };
+
+  const renderWorkspacesContent = () => {
+    if (isLoadingWorkspaces) {
+      return (
+        <div className="dash-workspaces-loading">
+          <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+          <span>Retrieving cloud workspaces...</span>
+        </div>
+      );
+    }
+
+    if (workspaces.length === 0) {
+      return (
+        <div className="dash-workspaces-empty">
+          <div className="editor-empty-icon-box" style={{ width: '48px', height: '48px', marginBottom: '12px' }}>
+            <FolderCode className="w-6 h-6 text-emerald-400" />
+          </div>
+          <h3>No saved workspaces yet</h3>
+          <p>Create a sandbox room, write your code, and it will be saved to your cloud directory.</p>
+          <button 
+            type="button"
+            className="btn-solid-emerald" 
+            style={{ marginTop: '16px' }}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            <span>Create Workspace</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="dash-workspaces-grid">
+        {workspaces.map((ws) => (
+          <div 
+            key={ws.roomId} 
+            className="dash-workspace-card"
+          >
+            <button 
+              type="button" 
+              className="dash-workspace-card-btn"
+              onClick={() => handleOpenWorkspace(ws)}
+            >
+              <div className="card-left-edge-cyan" />
+              <div className="ws-card-header">
+                <h4 className="ws-card-title">{ws.name || "Untitled Workspace"}</h4>
+              </div>
+
+              <div className="ws-card-meta">
+                <span>ID: {ws.roomId.substring(0, 8)}...</span>
+              </div>
+
+              <div className="ws-card-footer">
+                <span className="ws-role-pill">
+                  {ws.roomType || 'SANDBOX'}
+                </span>
+                <span className="ws-open-cue">
+                  <span>Open</span>
+                  <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                </span>
+              </div>
+            </button>
+
+            <div className="ws-card-buttons">
+              <button 
+                type="button"
+                className="ws-action-btn copy"
+                title="Copy Room Link"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/room/${ws.roomId}`);
+                  toast.success("Workspace link copied!");
+                }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button 
+                type="button"
+                className="ws-action-btn delete"
+                title="Delete Workspace"
+                onClick={() => {
+                  setDeleteTargetId(ws.roomId);
+                  setIsDeleteModalOpen(true);
+                }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (pageTransition.active) {
@@ -216,6 +314,7 @@ const Home = () => {
 
         <div className="dash-profile-menu">
           <button 
+            type="button"
             className={`dash-avatar-btn ${isProfileMenuOpen ? 'active' : ''}`}
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
           >
@@ -236,7 +335,7 @@ const Home = () => {
                 </div>
               </div>
               <div className="dash-popover-divider" />
-              <button className="dash-popover-item" onClick={handleLogout}>
+              <button type="button" className="dash-popover-item" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 <span>Log Out</span>
               </button>
@@ -276,11 +375,11 @@ const Home = () => {
               Spin up a live peer-synchronized code editor with Docker execution. Ideal for pair programming and rapid prototyping.
             </p>
             <div className="mode-card-actions">
-              <button className="btn-solid-emerald" onClick={() => setIsCreateModalOpen(true)}>
+              <button type="button" className="btn-solid-emerald" onClick={() => setIsCreateModalOpen(true)}>
                 <Plus className="w-4 h-4 mr-1.5" />
                 <span>Create Room</span>
               </button>
-              <button className="btn-glass-secondary" onClick={() => setIsJoinModalOpen(true)}>
+              <button type="button" className="btn-glass-secondary" onClick={() => setIsJoinModalOpen(true)}>
                 <ArrowRight className="w-4 h-4 mr-1.5" />
                 <span>Join ID</span>
               </button>
@@ -301,7 +400,7 @@ const Home = () => {
               Run structured technical interviews with host-only test validation, hidden constraints, and candidate scoring boards.
             </p>
             <div className="mode-card-actions">
-              <button className="btn-glass-amber" onClick={() => setIsInterviewModalOpen(true)}>
+              <button type="button" className="btn-glass-amber" onClick={() => setIsInterviewModalOpen(true)}>
                 <span>Configure Interview</span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </button>
@@ -322,7 +421,7 @@ const Home = () => {
               Enter a competitive coding arena with strict timers, automated algorithmic scoring, and live leaderboards.
             </p>
             <div className="mode-card-actions">
-              <button className="btn-glass-purple" onClick={() => toast("Competitive Arenas coming in the next release!", { icon: '🏆' })}>
+              <button type="button" className="btn-glass-purple" onClick={() => toast("Competitive Arenas coming in the next release!", { icon: '🏆' })}>
                 <span>View Active Arenas</span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </button>
@@ -341,89 +440,17 @@ const Home = () => {
             <div className="dash-divider-line" />
           </div>
 
-          {isLoadingWorkspaces ? (
-            <div className="dash-workspaces-loading">
-              <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-              <span>Retrieving cloud workspaces...</span>
-            </div>
-          ) : workspaces.length === 0 ? (
-            <div className="dash-workspaces-empty">
-              <div className="editor-empty-icon-box" style={{ width: '48px', height: '48px', marginBottom: '12px' }}>
-                <FolderCode className="w-6 h-6 text-emerald-400" />
-              </div>
-              <h3>No saved workspaces yet</h3>
-              <p>Create a sandbox room, write your code, and it will be saved to your cloud directory.</p>
-              <button 
-                className="btn-solid-emerald" 
-                style={{ marginTop: '16px' }}
-                onClick={() => setIsCreateModalOpen(true)}
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                <span>Create Workspace</span>
-              </button>
-            </div>
-          ) : (
-            <div className="dash-workspaces-grid">
-              {workspaces.map((ws) => (
-                <div 
-                  key={ws.roomId} 
-                  className="dash-workspace-card"
-                  onClick={() => handleOpenWorkspace(ws)}
-                >
-                  <div className="card-left-edge-cyan" />
-                  <div className="ws-card-header">
-                    <h4 className="ws-card-title">{ws.name || "Untitled Workspace"}</h4>
-                    <div className="ws-card-buttons" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        className="ws-action-btn copy"
-                        title="Copy Room Link"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/room/${ws.roomId}`);
-                          toast.success("Workspace link copied!");
-                        }}
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button 
-                        className="ws-action-btn delete"
-                        title="Delete Workspace"
-                        onClick={() => {
-                          setDeleteTargetId(ws.roomId);
-                          setIsDeleteModalOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="ws-card-meta">
-                    <span>ID: {ws.roomId.substring(0, 8)}...</span>
-                  </div>
-
-                  <div className="ws-card-footer">
-                    <span className="ws-role-pill">
-                      {ws.roomType || 'SANDBOX'}
-                    </span>
-                    <span className="ws-open-cue">
-                      <span>Open</span>
-                      <ExternalLink className="w-3.5 h-3.5 ml-1" />
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderWorkspacesContent()}
         </section>
       </main>
 
       {/* 1. Create Room Modal */}
       {isCreateModalOpen && (
-        <div className="dash-modal-backdrop" onClick={() => setIsCreateModalOpen(false)}>
-          <div className="dash-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dash-modal-backdrop">
+          <dialog open className="dash-modal-dialog">
             <div className="dash-modal-header">
               <h3>Create Dev Sandbox</h3>
-              <button className="dash-modal-close" onClick={() => setIsCreateModalOpen(false)}>
+              <button type="button" className="dash-modal-close" onClick={() => setIsCreateModalOpen(false)}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -442,20 +469,20 @@ const Home = () => {
               />
             </div>
             <div className="dash-modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
-              <button className="btn-modal-submit" onClick={handleCreateRoom}>Launch Workspace</button>
+              <button type="button" className="btn-modal-cancel" onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
+              <button type="button" className="btn-modal-submit" onClick={handleCreateRoom}>Launch Workspace</button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
 
       {/* 2. Join Room Modal */}
       {isJoinModalOpen && (
-        <div className="dash-modal-backdrop" onClick={() => setIsJoinModalOpen(false)}>
-          <div className="dash-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dash-modal-backdrop">
+          <dialog open className="dash-modal-dialog">
             <div className="dash-modal-header">
               <h3>Join Existing Workspace</h3>
-              <button className="dash-modal-close" onClick={() => setIsJoinModalOpen(false)}>
+              <button type="button" className="dash-modal-close" onClick={() => setIsJoinModalOpen(false)}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -474,20 +501,20 @@ const Home = () => {
               />
             </div>
             <div className="dash-modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setIsJoinModalOpen(false)}>Cancel</button>
-              <button className="btn-modal-submit" onClick={handleJoinRoom}>Connect to Room</button>
+              <button type="button" className="btn-modal-cancel" onClick={() => setIsJoinModalOpen(false)}>Cancel</button>
+              <button type="button" className="btn-modal-submit" onClick={handleJoinRoom}>Connect to Room</button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
 
       {/* 3. Configure Interview Modal */}
       {isInterviewModalOpen && (
-        <div className="dash-modal-backdrop" onClick={() => setIsInterviewModalOpen(false)}>
-          <div className="dash-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dash-modal-backdrop">
+          <dialog open className="dash-modal-dialog">
             <div className="dash-modal-header">
               <h3>Configure Technical Interview</h3>
-              <button className="dash-modal-close" onClick={() => setIsInterviewModalOpen(false)}>
+              <button type="button" className="dash-modal-close" onClick={() => setIsInterviewModalOpen(false)}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -511,20 +538,20 @@ const Home = () => {
               />
             </div>
             <div className="dash-modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setIsInterviewModalOpen(false)}>Cancel</button>
-              <button className="btn-modal-submit" onClick={handleCreateInterview}>Start Interview</button>
+              <button type="button" className="btn-modal-cancel" onClick={() => setIsInterviewModalOpen(false)}>Cancel</button>
+              <button type="button" className="btn-modal-submit" onClick={handleCreateInterview}>Start Interview</button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
 
       {/* 4. Delete Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="dash-modal-backdrop" onClick={() => setIsDeleteModalOpen(false)}>
-          <div className="dash-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dash-modal-backdrop">
+          <dialog open className="dash-modal-dialog">
             <div className="dash-modal-header">
               <h3>Delete Workspace</h3>
-              <button className="dash-modal-close" onClick={() => setIsDeleteModalOpen(false)}>
+              <button type="button" className="dash-modal-close" onClick={() => setIsDeleteModalOpen(false)}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -532,10 +559,10 @@ const Home = () => {
               Are you sure you want to remove this saved workspace from the cloud? This action cannot be undone.
             </p>
             <div className="dash-modal-actions">
-              <button className="btn-modal-cancel" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
-              <button className="btn-modal-danger" onClick={confirmDeleteWorkspace}>Delete</button>
+              <button type="button" className="btn-modal-cancel" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
+              <button type="button" className="btn-modal-danger" onClick={confirmDeleteWorkspace}>Delete</button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
     </div>

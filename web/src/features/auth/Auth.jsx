@@ -155,7 +155,7 @@ const Auth = () => {
               </div>
               <div className="mockup-body">
                 <div className="code-line"><span className="token-keyword">import</span> &#123; createRoom &#125; <span className="token-keyword">from</span> <span className="token-string">'@vylop/core'</span>;</div>
-                <div className="code-line"><span className="token-comment">// Instant synchronized workspace</span></div>
+                <div className="code-line"><span className="token-comment">{"// Instant synchronized workspace"}</span></div>
                 <div className="code-line"><span className="token-keyword">const</span> session = <span className="token-function">createRoom</span>(&#123;</div>
                 <div className="code-line indent"><span className="token-key">engine</span>: <span className="token-string">'docker-sandbox'</span>,</div>
                 <div className="code-line indent"><span className="token-key">sync</span>: <span className="token-boolean">true</span>,</div>
