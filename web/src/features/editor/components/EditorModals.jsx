@@ -72,6 +72,23 @@ const EditorModals = ({
   confirmLanguageChange,
   activeFile
 }) => {
+  const handleDiscardAndExit = async () => {
+    try {
+      const sanitizedRoomId = encodeURIComponent(String(roomId || '').trim());
+      const sanitizedUsername = String(username || '').trim();
+      
+      if (sanitizedRoomId && sanitizedUsername) {
+        await axios.delete(`${API_BASE_URL}/api/workspace/${sanitizedRoomId}/delete`, {
+          params: { username: sanitizedUsername }
+        });
+        toast.success("Workspace discarded");
+      }
+    } catch (e) { 
+      console.warn("Failed to discard workspace:", e); 
+    }
+    navigate('/');
+  };
+
   return (
     <>
       {/* 1. QUESTION BANK MODAL */}
@@ -440,15 +457,7 @@ const EditorModals = ({
                 type="button"
                 className="btn-danger-action" 
                 style={{ width: '100%' }} 
-                onClick={async () => {
-                  try {
-                    await axios.delete(`${API_BASE_URL}/api/workspace/${roomId}/delete?username=${encodeURIComponent(username)}`);
-                    toast.success("Workspace discarded");
-                  } catch (e) { 
-                    console.warn("Failed to discard workspace:", e); 
-                  }
-                  navigate('/');
-                }}
+                onClick={handleDiscardAndExit}
               >
                 Discard & Exit
               </button>

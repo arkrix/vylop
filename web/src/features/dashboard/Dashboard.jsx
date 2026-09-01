@@ -1,140 +1,248 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { Plus, Code2, ArrowRight, Trash2, Folder, Clock, LogOut, Search } from 'lucide-react';
+import './Dashboard.css';
 
 const API_BASE_URL = 'https://vylop.onrender.com';
+
+const renderEmptyState = (handleCreateWorkspace) => (
+    <div className="dashboard-empty-state">
+        <div className="empty-icon-box">
+            <Folder className="w-8 h-8 text-emerald-400" />
+        </div>
+        <h3>No Workspaces Found</h3>
+        <p>Create a new workspace or join an existing session with a Room ID.</p>
+        <button 
+            type="button" 
+            className="btn-primary"
+            onClick={handleCreateWorkspace}
+        >
+            <Plus className="w-4 h-4 mr-1.5" />
+            <span>Create Workspace</span>
+        </button>
+    </div>
+);
+
+const renderWorkspaceList = (workspaces, handleOpenWorkspace, handleDeleteWorkspace) => (
+    <div className="workspace-grid">
+        {workspaces.map((ws) => (
+            <div key={ws.roomId || ws.id || ws.name} className="workspace-card-wrapper">
+                <button
+                    type="button"
+                    className="workspace-card"
+                    onClick={() => handleOpenWorkspace(ws.roomId || ws.id, ws.name)}
+                    title={`Open ${ws.name || 'Workspace'}`}
+                >
+                    <div className="workspace-card-header">
+                        <div className="workspace-icon">
+                            <Code2 className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <span className="workspace-date">
+                            <Clock className="w-3.5 h-3.5 mr-1" />
+                            {ws.updatedAt ? new Date(ws.updatedAt).toLocaleDateString() : 'Recent'}
+                        </span>
+                    </div>
+                    <h4 className="workspace-title">{ws.name || 'Untitled Workspace'}</h4>
+                    <p className="workspace-room-id">ID: {ws.roomId || ws.id}</p>
+                    <div className="workspace-card-footer">
+                        <span className="open-link">
+                            Launch Workspace <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                        </span>
+                    </div>
+                </button>
+
+                {handleDeleteWorkspace && (
+                    <button
+                        type="button"
+                        className="workspace-delete-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteWorkspace(ws.roomId || ws.id);
+                        }}
+                        title="Delete Workspace"
+                        aria-label={`Delete workspace ${ws.name || ws.roomId}`}
+                    >
+                        <Trash2 className="w-4 h-4 text-rose-400" />
+                    </button>
+                )}
+            </div>
+        ))}
+    </div>
+);
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [workspaces, setWorkspaces] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [joinRoomId, setJoinRoomId] = useState("");
-    
-    const username = localStorage.getItem('username');
+    const [newRoomName, setNewRoomName] = useState("");
+    const [username] = useState(() => localStorage.getItem('username') || '');
 
-    useEffect(() => {
-        if (!username) {
-            toast.error("SYSTEM ERROR: UNKNOWN USER");
-            navigate('/auth');
-            return;
-        }
-        fetchWorkspaces();
-    }, [username, navigate]);
-
-    const fetchWorkspaces = async () => {
+    const fetchWorkspaces = useCallback(async () => {
+        setIsLoading(true);
         try {
-            setIsLoading(true);
-            const response = await axios.get(`${API_BASE_URL}/api/workspace/user/${username}`);
-            setWorkspaces(response.data);
+            const res = await axios.get(`${API_BASE_URL}/api/workspace/list`, {
+                params: { username: username || localStorage.getItem('username') }
+            });
+            if (Array.isArray(res.data)) {
+                setWorkspaces(res.data);
+            } else {
+                setWorkspaces([]);
+            }
         } catch (error) {
-            console.error("Fetch error:", error);
-            toast.error("ERR_CONNECTION_REFUSED");
+            console.debug("Failed to fetch workspaces from server:", error);
+            setWorkspaces([]);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [username]);
 
-    const handleCreateNew = () => {
-        const roomId = uuidv4();
-        navigate(`/room/${roomId}`, {
-            state: { username: username, roomName: "root@vylop:~#" }
+    useEffect(() => {
+        fetchWorkspaces();
+    }, [fetchWorkspaces]);
+
+    const handleCreateWorkspace = () => {
+        const roomId = uuidv4().slice(0, 8);
+        const name = newRoomName.trim() || `Workspace-${roomId}`;
+        navigate(`/room/${encodeURIComponent(roomId)}`, {
+            state: {
+                roomName: name,
+                username: username || 'Developer',
+                mode: 'COLLAB'
+            }
         });
     };
 
-    const handleJoinExisting = () => {
-        if (!joinRoomId.trim()) return;
-        navigate(`/room/${joinRoomId.trim()}`, {
-            state: { username: username, roomName: "Remote Connection" }
+    const handleJoinWorkspace = (e) => {
+        e.preventDefault();
+        if (!joinRoomId.trim()) {
+            toast.error("Please enter a valid Room ID");
+            return;
+        }
+        navigate(`/room/${encodeURIComponent(joinRoomId.trim())}`, {
+            state: {
+                username: username || 'Developer'
+            }
         });
     };
 
     const handleOpenWorkspace = (roomId, roomName) => {
-        navigate(`/room/${roomId}`, {
-            state: { username: username, roomName: roomName }
+        navigate(`/room/${encodeURIComponent(roomId)}`, {
+            state: {
+                roomName: roomName || `Workspace-${roomId}`,
+                username: username || 'Developer'
+            }
         });
     };
 
-    const handleDeleteWorkspace = async (roomId, roomName) => {
-        if (!window.confirm(`WARN: Execute rm -rf on "${roomName}"?`)) return;
+    const handleDeleteWorkspace = async (roomId) => {
         try {
-            await axios.delete(`${API_BASE_URL}/api/workspace/${roomId}/delete?username=${encodeURIComponent(username)}`);
-            toast.success(`FILE_DELETED`);
-            setWorkspaces(prev => prev.filter(ws => ws.id !== roomId));
+            await axios.delete(`${API_BASE_URL}/api/workspace/${encodeURIComponent(roomId)}`);
+            setWorkspaces((prev) => prev.filter((ws) => (ws.roomId || ws.id) !== roomId));
+            toast.success("Workspace deleted");
         } catch (error) {
-            toast.error("PERMISSION_DENIED");
+            console.debug("Delete workspace error:", error);
+            toast.error("Could not delete workspace");
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        navigate('/auth');
+    };
+
+    // Extracted independent rendering function to avoid nested ternaries (S3358)
+    const renderWorkspaceContent = () => {
+        if (isLoading) {
+            return (
+                <div className="dashboard-loading-state">
+                    <div className="spinner" />
+                    <p>Loading workspaces...</p>
+                </div>
+            );
+        }
+        if (workspaces.length === 0) {
+            return renderEmptyState(handleCreateWorkspace);
+        }
+        return renderWorkspaceList(workspaces, handleOpenWorkspace, handleDeleteWorkspace);
+    };
+
     return (
-        <div style={{ backgroundColor: '#000000', color: '#00FF41', fontFamily: '"Courier New", Courier, monospace', height: '100vh', width: '100vw', padding: '40px', overflowY: 'auto', boxSizing: 'border-box' }}>
-            
-            <div style={{ borderBottom: '2px dashed #00FF41', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <div>
-                    <h1 style={{ margin: 0, fontSize: '2.5rem', letterSpacing: '2px' }}>VYLOP_MAINFRAME_v3.1</h1>
-                    <p style={{ margin: '10px 0 0 0', opacity: 0.8 }}>CONNECTION ESTABLISHED...</p>
+        <div className="dashboard-layout">
+            <header className="dashboard-navbar">
+                <div className="navbar-left">
+                    <Code2 className="w-6 h-6 text-emerald-400 mr-2" />
+                    <span className="navbar-brand">Vylop IDE</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ marginBottom: '10px' }}>LOGGED IN AS: <span style={{ fontWeight: 'bold', background: '#00FF41', color: '#000', padding: '2px 6px' }}>{username}</span></div>
-                    <button onClick={() => { localStorage.removeItem('username'); navigate('/auth'); }} 
-                            style={{ background: 'transparent', color: '#00FF41', border: '1px solid #00FF41', padding: '5px 15px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        [ TERMINATE_SESSION ]
+                <div className="navbar-right">
+                    <span className="user-badge">{username || 'Developer'}</span>
+                    <button 
+                        type="button" 
+                        className="btn-logout" 
+                        onClick={handleLogout}
+                        title="Sign Out"
+                    >
+                        <LogOut className="w-4 h-4 mr-1.5" />
+                        <span>Sign Out</span>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
-                <div style={{ flex: 1, border: '1px solid #00FF41', padding: '20px', background: 'rgba(0, 255, 65, 0.05)' }}>
-                    <h2 style={{ margin: '0 0 20px 0' }}>{">"} EXECUTE_COMMAND</h2>
-                    <button onClick={handleCreateNew} 
-                            style={{ display: 'block', width: '100%', background: '#00FF41', color: '#000', border: 'none', padding: '15px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '15px', fontSize: '1.1rem' }}>
-                        ./INITIALIZE_NEW_WORKSPACE.sh
-                    </button>
-                    
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <input type="text" value={joinRoomId} onChange={(e) => setJoinRoomId(e.target.value)} placeholder="INPUT_ROOM_HASH..." 
-                               style={{ flex: 1, background: '#000', color: '#00FF41', border: '1px solid #00FF41', padding: '10px', fontFamily: 'inherit', outline: 'none' }} />
-                        <button onClick={handleJoinExisting} 
-                                style={{ background: 'transparent', color: '#00FF41', border: '1px solid #00FF41', padding: '10px 20px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            CONNECT
-                        </button>
+            <main className="dashboard-main-content">
+                <section className="dashboard-hero-section">
+                    <div className="hero-create-card">
+                        <h2>Create Workspace</h2>
+                        <p>Start a new collaborative editor session with live CRDT syncing.</p>
+                        <div className="create-input-group">
+                            <input
+                                type="text"
+                                placeholder="Workspace Name (optional)"
+                                value={newRoomName}
+                                onChange={(e) => setNewRoomName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleCreateWorkspace();
+                                }}
+                            />
+                            <button
+                                type="button"
+                                className="btn-primary"
+                                onClick={handleCreateWorkspace}
+                            >
+                                <Plus className="w-4 h-4 mr-1.5" />
+                                <span>Create</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <div>
-                <h2 style={{ borderBottom: '1px solid #00FF41', paddingBottom: '10px', marginBottom: '20px' }}>{">"} LS -LA ./SAVED_DIRECTORIES</h2>
-                
-                {isLoading ? (
-                    <p className="blink">SCANNING_DRIVES...</p>
-                ) : workspaces.length === 0 ? (
-                    <p>NO_DIRECTORIES_FOUND</p>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-                        {workspaces.map((ws, index) => (
-                            <div key={ws.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: '1px solid rgba(0, 255, 65, 0.3)' }}>
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                    <span style={{ opacity: 0.5 }}>[{index.toString().padStart(3, '0')}]</span>
-                                    <span onClick={() => handleOpenWorkspace(ws.id, ws.name)} style={{ cursor: 'pointer', textDecoration: 'underline', fontSize: '1.2rem' }}>
-                                        {ws.name}
-                                    </span>
-                                    <span style={{ opacity: 0.5 }}>{new Date(ws.createdAt).toISOString()}</span>
-                                </div>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteWorkspace(ws.id, ws.name); }} 
-                                        style={{ background: 'transparent', color: '#ff003c', border: '1px solid #ff003c', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                    [ DELETE ]
-                                </button>
-                            </div>
-                        ))}
+                    <div className="hero-join-card">
+                        <h2>Join Existing Session</h2>
+                        <p>Enter a shared Room ID to collaborate in real-time.</p>
+                        <form onSubmit={handleJoinWorkspace} className="join-input-group">
+                            <input
+                                type="text"
+                                placeholder="Enter Room ID"
+                                value={joinRoomId}
+                                onChange={(e) => setJoinRoomId(e.target.value)}
+                            />
+                            <button type="submit" className="btn-secondary">
+                                <Search className="w-4 h-4 mr-1.5" />
+                                <span>Join</span>
+                            </button>
+                        </form>
                     </div>
-                )}
-            </div>
+                </section>
 
-            <style>{`
-                .blink { animation: blink-animation 1s steps(5, start) infinite; }
-                @keyframes blink-animation { to { visibility: hidden; } }
-            `}</style>
+                <section className="dashboard-recent-section">
+                    <div className="recent-header">
+                        <h3>Your Saved Workspaces</h3>
+                    </div>
+                    {renderWorkspaceContent()}
+                </section>
+            </main>
         </div>
     );
 };

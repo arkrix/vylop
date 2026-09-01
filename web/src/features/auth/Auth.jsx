@@ -18,6 +18,13 @@ import './Auth.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://vylop.onrender.com';
 
+const getSafeInternalRedirect = (url) => {
+  if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+    return url;
+  }
+  return '/';
+};
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -44,11 +51,12 @@ const Auth = () => {
       localStorage.setItem("loginType", "google");
       toast.success("Successfully logged in with Google!");
       
-      const redirectUrl = localStorage.getItem('redirectUrl') || "/";
+      const rawRedirect = localStorage.getItem('redirectUrl') || "/";
       localStorage.removeItem('redirectUrl'); 
-      window.location.href = redirectUrl;
+      const safeRedirect = getSafeInternalRedirect(rawRedirect);
+      navigate(safeRedirect, { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -85,7 +93,8 @@ const Auth = () => {
       }
 
       toast.success(isLogin ? 'Welcome back!' : 'Account created successfully!');
-      navigate(from, { replace: true });
+      const safeDestination = getSafeInternalRedirect(from);
+      navigate(safeDestination, { replace: true });
     } catch (error) {
       await minimumTransitionDelay;
       console.error("Auth Error:", error);
@@ -101,7 +110,8 @@ const Auth = () => {
       subtext: "Redirecting to Google secure authentication gateway..."
     });
     setLoading(true);
-    localStorage.setItem('redirectUrl', from);
+    const safeFrom = getSafeInternalRedirect(from);
+    localStorage.setItem('redirectUrl', safeFrom);
 
     setTimeout(() => {
       window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
@@ -160,7 +170,7 @@ const Auth = () => {
                 <div className="code-line indent"><span className="token-key">engine</span>: <span className="token-string">'docker-sandbox'</span>,</div>
                 <div className="code-line indent"><span className="token-key">sync</span>: <span className="token-boolean">true</span>,</div>
                 <div className="code-line indent"><span className="token-key">latency</span>: <span className="token-string">'&lt;15ms'</span></div>
-                <div className="code-line">&#125;);</div>
+                <div className="code-line">&#125;</div>
               </div>
             </div>
 

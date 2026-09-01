@@ -1,197 +1,267 @@
 import React from 'react';
 import { 
-  Code2, 
-  X, 
-  ChevronRight, 
-  FolderTree, 
-  Users, 
-  MessageSquare, 
-  Send, 
-  Copy, 
-  LogOut,
-  Plus
+    ChevronDown, 
+    ChevronRight, 
+    Folder, 
+    Users, 
+    MessageSquare, 
+    Send, 
+    Crown, 
+    Shield, 
+    Eye, 
+    UserMinus, 
+    Share2, 
+    LogOut, 
+    Plus 
 } from 'lucide-react';
-import FileExplorer from '../FileExplorer';
+import FileExplorer from './FileExplorer';
+import './EditorSidebar.css';
+
+const renderUserRoleBadge = (role) => {
+    if (role === 'HOST') {
+        return (
+            <span className="user-role-badge role-host">
+                <Crown className="w-3 h-3 mr-1 text-amber-400" />
+                <span>Host</span>
+            </span>
+        );
+    }
+    if (role === 'EDITOR') {
+        return (
+            <span className="user-role-badge role-editor">
+                <Shield className="w-3 h-3 mr-1 text-emerald-400" />
+                <span>Editor</span>
+            </span>
+        );
+    }
+    return (
+        <span className="user-role-badge role-viewer">
+            <Eye className="w-3 h-3 mr-1 text-blue-400" />
+            <span>Viewer</span>
+        </span>
+    );
+};
 
 const EditorSidebar = ({
-  isSidebarOpen,
-  setIsSidebarOpen,
-  isExplorerExpanded,
-  setIsExplorerExpanded,
-  files,
-  activeFile,
-  handleFileOpen,
-  isOnlineExpanded,
-  setIsOnlineExpanded,
-  users,
-  wsConnected,
-  getUserColor,
-  isHost,
-  canEdit,
-  username,
-  changeUserRole,
-  kickTargetUser,
-  isChatExpanded,
-  setIsChatExpanded,
-  messages,
-  chatContainerRef,
-  typingUsers,
-  chatMsg,
-  handleTypingChange,
-  sendChat,
-  copyRoomLink,
-  setIsLeaveModalOpen,
-  setIsModalOpen,
-  navigate
+    isSidebarOpen,
+    isExplorerExpanded,
+    setIsExplorerExpanded,
+    files,
+    activeFile,
+    handleFileOpen,
+    isOnlineExpanded,
+    setIsOnlineExpanded,
+    users = [],
+    wsConnected,
+    getUserColor,
+    isHost,
+    canEdit,
+    username,
+    changeUserRole,
+    kickTargetUser,
+    isChatExpanded,
+    setIsChatExpanded,
+    messages = [],
+    chatContainerRef,
+    typingUsers = [],
+    chatMsg,
+    handleTypingChange,
+    sendChat,
+    copyRoomLink,
+    setIsLeaveModalOpen,
+    setIsModalOpen
 }) => {
-  return (
-    <div className={`sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
-      {/* Header */}
-      <div className="sidebar-header">
-        <div className="editor-brand-badge">
-          <Code2 className="w-4 h-4" />
-          <span>Vylop</span>
-        </div>
-        <button className="btn-glass btn-glass-icon" onClick={() => setIsSidebarOpen(false)}>
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+    if (!isSidebarOpen) return null;
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
-        {/* 1. Files Explorer */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: isExplorerExpanded ? '1 1 0%' : '0 0 auto', minHeight: 0 }}>
-          <div 
-            className="sidebar-section-header"
-            onClick={() => setIsExplorerExpanded(!isExplorerExpanded)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExplorerExpanded ? 'rotate-90' : ''}`} />
-              <FolderTree className="w-3.5 h-3.5" />
-              <span>Explorer</span>
-            </div>
-            {canEdit && (
-              <button 
-                className="btn-glass btn-glass-icon" 
-                style={{ width: '22px', height: '22px', padding: 0 }}
-                onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
-                title="Add New File"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-          {isExplorerExpanded && (
-            <div style={{ overflowY: 'auto', flex: 1, padding: '4px 10px 10px 10px' }}>
-              <FileExplorer files={files} activeFile={activeFile} onFileClick={handleFileOpen} />
-            </div>
-          )}
-        </div>
-
-        {/* 2. Online Users */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: isOnlineExpanded ? '0 1 auto' : '0 0 auto', maxHeight: '35%', minHeight: 0 }}>
-          <div 
-            className="sidebar-section-header"
-            onClick={() => setIsOnlineExpanded(!isOnlineExpanded)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isOnlineExpanded ? 'rotate-90' : ''}`} />
-              <Users className="w-3.5 h-3.5" />
-              <span>Online ({users.length})</span>
-            </div>
-            <span className={`status-dot ${wsConnected ? 'connected' : 'disconnected'}`}></span>
-          </div>
-          {isOnlineExpanded && (
-            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 14px' }}>
-              {users.map((u, i) => (
-                <div key={i} className="user-card-item">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: getUserColor(u.username), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', color: '#fff', fontSize: '13px' }}>
-                      {u.username.charAt(0).toUpperCase()}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {u.username}
-                      </span>
-                      <span className={`user-role-badge ${u.role === 'HOST' ? 'role-host' : u.role === 'EDITOR' ? 'role-editor' : 'role-readonly'}`}>
-                        {u.role}
-                      </span>
-                    </div>
-                  </div>
-                  {isHost && u.username !== username && (
-                    <div style={{ display: 'flex', gap: '6px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      {u.role === 'READ_ONLY'
-                        ? <button onClick={() => changeUserRole(u.username, 'EDITOR')} className="btn-glass" style={{ flex: 1, height: '26px', fontSize: '0.72rem' }}>Promote</button>
-                        : <button onClick={() => changeUserRole(u.username, 'READ_ONLY')} className="btn-glass" style={{ flex: 1, height: '26px', fontSize: '0.72rem' }}>Demote</button>
-                      }
-                      <button onClick={() => kickTargetUser(u.username)} className="btn-glass" style={{ height: '26px', fontSize: '0.72rem', color: '#f87171' }}>Kick</button>
-                    </div>
-                  )}
+    return (
+        <aside className="editor-sidebar-container">
+            {/* Header & Explorer Section */}
+            <div className="sidebar-section">
+                <div className="sidebar-section-header-wrapper">
+                    <button
+                        type="button"
+                        className="sidebar-section-toggle-btn"
+                        onClick={() => setIsExplorerExpanded(!isExplorerExpanded)}
+                        aria-expanded={isExplorerExpanded}
+                    >
+                        {isExplorerExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <Folder className="w-4 h-4 text-amber-400" />
+                        <span>Explorer</span>
+                    </button>
+                    {canEdit && (
+                        <button
+                            type="button"
+                            className="sidebar-action-icon-btn"
+                            onClick={() => setIsModalOpen(true)}
+                            title="New File"
+                            aria-label="New File"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* 3. Live Chat */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: isChatExpanded ? '1 1 0%' : '0 0 auto', minHeight: 0 }}>
-          <div 
-            className="sidebar-section-header"
-            onClick={() => setIsChatExpanded(!isChatExpanded)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isChatExpanded ? 'rotate-90' : ''}`} />
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Workspace Chat</span>
+                {isExplorerExpanded && (
+                    <div className="sidebar-section-content">
+                        <FileExplorer
+                            files={files}
+                            activeFile={activeFile}
+                            onFileSelect={handleFileOpen}
+                            canEdit={canEdit}
+                        />
+                    </div>
+                )}
             </div>
-          </div>
-          {isChatExpanded && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div className="chat-messages" ref={chatContainerRef}>
-                {messages.map((msg, i) => (
-                  <div key={i} className={`message ${msg.sender === username ? 'self' : 'other'}`}>
-                    <span className="msg-meta">{msg.sender}</span>
-                    <div className="msg-bubble">{msg.content}</div>
-                  </div>
-                ))}
-              </div>
-              {typingUsers.length > 0 && (
-                <div style={{ padding: '0 14px 4px', fontSize: '0.72rem', color: '#64748b', fontStyle: 'italic' }}>
-                  {typingUsers.join(', ')} typing...
+
+            {/* Online Collaborators Section */}
+            <div className="sidebar-section">
+                <div className="sidebar-section-header-wrapper">
+                    <button
+                        type="button"
+                        className="sidebar-section-toggle-btn"
+                        onClick={() => setIsOnlineExpanded(!isOnlineExpanded)}
+                        aria-expanded={isOnlineExpanded}
+                    >
+                        {isOnlineExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <Users className="w-4 h-4 text-emerald-400" />
+                        <span>Online Users ({users.length})</span>
+                    </button>
+                    <span className={`ws-status-indicator ${wsConnected ? 'connected' : 'disconnected'}`} title={wsConnected ? 'Connected' : 'Disconnected'} />
                 </div>
-              )}
-              <div className="chat-input-area">
-                <input 
-                  className="dash-styled-input" 
-                  style={{ height: '34px', padding: '0 12px', fontSize: '0.85rem' }}
-                  value={chatMsg} 
-                  onChange={handleTypingChange} 
-                  onKeyDown={(e) => e.key === 'Enter' && sendChat()} 
-                  placeholder="Send a message..." 
-                />
-                <button className="btn-glass btn-glass-icon" onClick={sendChat}>
-                  <Send className="w-3.5 h-3.5" />
+
+                {isOnlineExpanded && (
+                    <ul className="sidebar-user-list">
+                        {users.map((u) => {
+                            const isMe = u.username === username;
+                            const userColor = getUserColor ? getUserColor(u.username) : '#10b981';
+
+                            return (
+                                <li key={`user-row-${u.username}`} className="sidebar-user-item">
+                                    <div className="user-info-left">
+                                        <span 
+                                            className="user-avatar-dot" 
+                                            style={{ backgroundColor: userColor }} 
+                                        />
+                                        <span className="user-name-text">
+                                            {u.username} {isMe && '(You)'}
+                                        </span>
+                                    </div>
+
+                                    <div className="user-info-right">
+                                        {renderUserRoleBadge(u.role)}
+
+                                        {isHost && !isMe && (
+                                            <div className="host-controls">
+                                                <select
+                                                    value={u.role}
+                                                    onChange={(e) => changeUserRole(u.username, e.target.value)}
+                                                    className="role-select-dropdown"
+                                                    aria-label={`Change role for ${u.username}`}
+                                                >
+                                                    <option value="EDITOR">Editor</option>
+                                                    <option value="READ_ONLY">Viewer</option>
+                                                </select>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => kickTargetUser(u.username)}
+                                                    className="user-kick-btn"
+                                                    title={`Kick ${u.username}`}
+                                                    aria-label={`Kick ${u.username}`}
+                                                >
+                                                    <UserMinus className="w-3.5 h-3.5 text-rose-400" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+
+            {/* Chat Room Section */}
+            <div className="sidebar-section sidebar-chat-section">
+                <div className="sidebar-section-header-wrapper">
+                    <button
+                        type="button"
+                        className="sidebar-section-toggle-btn"
+                        onClick={() => setIsChatExpanded(!isChatExpanded)}
+                        aria-expanded={isChatExpanded}
+                    >
+                        {isChatExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <MessageSquare className="w-4 h-4 text-sky-400" />
+                        <span>Room Chat</span>
+                    </button>
+                </div>
+
+                {isChatExpanded && (
+                    <div className="sidebar-chat-container">
+                        <div ref={chatContainerRef} className="chat-messages-scroll-area">
+                            {messages.map((m) => (
+                                <div 
+                                    key={m.id || `msg-${m.sender}-${m.timestamp || m.content}`} 
+                                    className={`chat-bubble-wrapper ${m.sender === username ? 'outgoing' : 'incoming'}`}
+                                >
+                                    <span className="chat-sender-label">{m.sender}</span>
+                                    <div className="chat-bubble-content">{m.content}</div>
+                                </div>
+                            ))}
+                            {typingUsers.length > 0 && (
+                                <div className="chat-typing-indicator">
+                                    {typingUsers.join(', ')} {typingUsers.length > 1 ? 'are' : 'is'} typing...
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="chat-input-bar">
+                            <input
+                                type="text"
+                                className="chat-text-input"
+                                value={chatMsg}
+                                onChange={handleTypingChange}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        sendChat();
+                                    }
+                                }}
+                                placeholder="Send a message..."
+                            />
+                            <button
+                                type="button"
+                                className="chat-send-btn"
+                                onClick={sendChat}
+                                title="Send Message"
+                                aria-label="Send Message"
+                            >
+                                <Send className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer Workspace Action Buttons */}
+            <div className="sidebar-footer-controls">
+                <button
+                    type="button"
+                    className="sidebar-footer-btn"
+                    onClick={copyRoomLink}
+                >
+                    <Share2 className="w-4 h-4 mr-2 text-indigo-400" />
+                    <span>Invite Link</span>
                 </button>
-              </div>
+                <button
+                    type="button"
+                    className="sidebar-footer-btn leave-btn"
+                    onClick={() => setIsLeaveModalOpen(true)}
+                >
+                    <LogOut className="w-4 h-4 mr-2 text-rose-400" />
+                    <span>Leave</span>
+                </button>
             </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Footer Controls */}
-      <div style={{ flexShrink: 0, borderTop: '1px solid var(--border-editor)', padding: '12px 14px', display: 'flex', gap: '8px' }}>
-        <button className="btn-glass" style={{ flex: 1 }} onClick={copyRoomLink}>
-          <Copy className="w-3.5 h-3.5 mr-1.5" />
-          <span>Copy Link</span>
-        </button>
-        <button className="btn-glass" style={{ color: '#f87171' }} onClick={() => isHost ? setIsLeaveModalOpen(true) : navigate('/')}>
-          <LogOut className="w-3.5 h-3.5 mr-1.5" />
-          <span>Leave</span>
-        </button>
-      </div>
-    </div>
-  );
+        </aside>
+    );
 };
 
 export default EditorSidebar;

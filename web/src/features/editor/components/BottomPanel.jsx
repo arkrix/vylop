@@ -26,6 +26,7 @@ const BottomPanel = ({
         <div style={{ display: 'flex' }}>
           {currentProblem && (
             <button 
+              type="button"
               className={`io-tab-btn ${activeBottomTab === 'testcases' ? 'active' : ''}`}
               onClick={() => setActiveBottomTab('testcases')}
             >
@@ -35,6 +36,7 @@ const BottomPanel = ({
           )}
           
           <button 
+            type="button"
             className={`io-tab-btn ${activeBottomTab === 'console' ? 'active' : ''}`}
             onClick={() => setActiveBottomTab('console')}
           >
@@ -44,6 +46,7 @@ const BottomPanel = ({
 
           {currentProblem && (
             <button 
+              type="button"
               className={`io-tab-btn ${activeBottomTab === 'submission' ? 'active' : ''}`}
               onClick={() => setActiveBottomTab('submission')}
             >
@@ -53,6 +56,7 @@ const BottomPanel = ({
           )}
           
           <button 
+            type="button"
             className={`io-tab-btn ${activeBottomTab === 'custom' ? 'active' : ''}`}
             onClick={() => setActiveBottomTab('custom')}
           >
@@ -65,10 +69,12 @@ const BottomPanel = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '8px' }}>
           {onToggleMaximize && (
             <button 
+              type="button"
               className="btn-glass btn-glass-icon" 
               style={{ width: '26px', height: '26px', padding: 0 }} 
               onClick={onToggleMaximize}
               title={isMaximized ? "Restore Panel Height" : "Maximize Panel"}
+              aria-label={isMaximized ? "Restore Panel Height" : "Maximize Panel"}
             >
               {isMaximized ? (
                 <Minimize2 className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
@@ -79,10 +85,12 @@ const BottomPanel = ({
           )}
 
           <button 
+            type="button"
             className="btn-glass btn-glass-icon" 
             style={{ width: '26px', height: '26px', padding: 0 }} 
             onClick={onClose}
             title="Hide Terminal"
+            aria-label="Hide Terminal"
           >
             <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
           </button>
@@ -95,19 +103,20 @@ const BottomPanel = ({
         {activeBottomTab === 'testcases' && currentProblem && (
           <div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              {(currentProblem.testcases || []).map(tc => (
-                <div 
+              {(currentProblem.testcases || []).map((tc) => (
+                <button 
+                  type="button"
                   key={tc.id} 
                   onClick={() => setActiveTestCaseId(tc.id)} 
                   className={`btn-glass ${activeTestCaseId === tc.id ? 'active' : ''}`}
-                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                  style={{ padding: '4px 10px', fontSize: '0.78rem', cursor: 'pointer' }}
                 >
                   {tc.name}
-                </div>
+                </button>
               ))}
             </div>
             
-            {(currentProblem.testcases || []).filter(tc => tc.id === activeTestCaseId).map(tc => (
+            {(currentProblem.testcases || []).filter((tc) => tc.id === activeTestCaseId).map((tc) => (
               <div key={tc.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
@@ -144,6 +153,7 @@ const BottomPanel = ({
               </span>
               {output && (
                 <button 
+                  type="button"
                   className="btn-glass" 
                   style={{ height: '24px', padding: '0 8px', fontSize: '0.72rem' }} 
                   onClick={() => setOutput("")}

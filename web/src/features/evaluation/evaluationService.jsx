@@ -6,6 +6,16 @@ const API_BASE_URL = 'https://vylop.onrender.com';
  * Runs the code against all test cases for a given problem.
  */
 export const evaluateSubmission = async (problem, activeFile, language, code, fileData, envVars) => {
+    if (!problem?.testcases?.length) {
+        return {
+            status: 'ERROR',
+            passedCount: 0,
+            totalCases: 0,
+            runtimeMs: 0,
+            message: 'No test cases defined for this problem.'
+        };
+    }
+
     let passedCount = 0;
     const totalCases = problem.testcases.length;
     const startTime = performance.now();
@@ -14,47 +24,57 @@ export const evaluateSubmission = async (problem, activeFile, language, code, fi
 
     for (const tc of problem.testcases) {
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/execute`, {
-                language: language || "plaintext",
-                code: code,
-                input: tc.rawInput,
-                mainFile: activeFile,
-                files: fileData,
-                envVars: envVars
-            }, { transformResponse: [(data) => data] });
+            const response = await axios.post(
+                `${API_BASE_URL}/api/execute`,
+                {
+                    language,
+                    code,
+                    input: tc.rawInput ?? tc.input ?? "",
+                    mainFile: activeFile,
+                    files: fileData,
+                    envVars
+                },
+                { transformResponse: [(data) => data] }
+            );
 
-            const out = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-            const cleanOut = out.trim();
-            const cleanExpected = tc.expectedOutput.trim();
+            const output = (typeof response.data === 'string' ? response.data : JSON.stringify(response.data)).trim();
+            const expected = String(tc.expectedOutput ?? tc.output ?? "").trim();
 
-            if (cleanOut === cleanExpected) {
-                passedCount++;
+            if (output === expected) {
+                passedCount += 1;
             } else {
                 failedCase = tc;
-                actualFailOutput = cleanOut;
-                break; // Stop evaluating on the first failed test case
+                actualFailOutput = output;
+                break;
             }
         } catch (error) {
-            return {
-                status: 'ERROR',
-                details: "Execution failed or timed out on test case: " + tc.name
-            };
+            console.debug("Testcase execution runtime/network failure:", error);
+            failedCase = tc;
+            actualFailOutput = error.response?.data ? String(error.response.data) : (error.message || "Runtime Error");
+            break;
         }
     }
 
     const endTime = performance.now();
-    const execTime = Math.round(endTime - startTime);
+    const runtimeMs = Math.round(endTime - startTime);
 
     if (passedCount === totalCases) {
-        return { status: 'ACCEPTED', passed: passedCount, total: totalCases, time: execTime };
-    } else {
         return {
-            status: 'WRONG_ANSWER',
-            passed: passedCount,
-            total: totalCases,
-            failedOn: failedCase,
-            actualOutput: actualFailOutput,
-            time: execTime
+            status: 'ACCEPTED',
+            passedCount,
+            totalCases,
+            runtimeMs,
+            failedCase: null,
+            actualFailOutput: ""
         };
     }
+
+    return {
+        status: 'WRONG_ANSWER',
+        passedCount,
+        totalCases,
+        runtimeMs,
+        failedCase,
+        actualFailOutput
+    };
 };

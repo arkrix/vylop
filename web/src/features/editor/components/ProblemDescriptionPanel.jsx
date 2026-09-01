@@ -1,164 +1,101 @@
-import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Tag, Copy, Check, Code2, AlertCircle, Terminal } from 'lucide-react';
+import React from 'react';
+import { BookOpen, Tag, AlertCircle, Layers } from 'lucide-react';
+import './ProblemDescriptionPanel.css';
+
+const getDifficultyClass = (difficulty = '') => {
+    const diff = difficulty.toLowerCase();
+    if (diff === 'easy') return 'difficulty-easy';
+    if (diff === 'medium') return 'difficulty-medium';
+    if (diff === 'hard') return 'difficulty-hard';
+    return 'difficulty-default';
+};
+
+const formatDifficultyText = (difficulty = '') => {
+    return difficulty.replaceAll('_', ' ');
+};
 
 const ProblemDescriptionPanel = ({ currentProblem }) => {
-    const [copiedIndex, setCopiedIndex] = useState(null);
+    if (!currentProblem) {
+        return (
+            <div className="problem-panel-empty">
+                <BookOpen className="w-8 h-8 text-zinc-500 mb-2" />
+                <p>No problem selected.</p>
+            </div>
+        );
+    }
 
-    if (!currentProblem) return null;
-
-    const copyExampleInput = (text, index) => {
-        navigator.clipboard.writeText(text);
-        setCopiedIndex(index);
-        setTimeout(() => setCopiedIndex(null), 2000);
-    };
-
-    const getDifficultyStyle = (diff) => {
-        switch (diff?.toLowerCase()) {
-            case 'easy':
-                return { bg: 'rgba(16, 185, 129, 0.12)', text: '#34d399', border: 'rgba(16, 185, 129, 0.25)' };
-            case 'medium':
-                return { bg: 'rgba(245, 158, 11, 0.12)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.25)' };
-            case 'hard':
-                return { bg: 'rgba(244, 63, 94, 0.12)', text: '#f87171', border: 'rgba(244, 63, 94, 0.25)' };
-            default:
-                return { bg: 'rgba(56, 189, 248, 0.12)', text: '#38bdf8', border: 'rgba(56, 189, 248, 0.25)' };
-        }
-    };
-
-    const diffStyle = getDifficultyStyle(currentProblem.difficulty);
-
-    // Cleanly separate description text from I/O specification
-    const parseDescription = (desc) => {
-        if (!desc) return { mainText: "", ioLines: [] };
-
-        const ioIndex = desc.search(/\*{0,2}I\/O Format/i);
-        if (ioIndex === -1) {
-            return { mainText: desc, ioLines: [] };
-        }
-
-        const mainText = desc.substring(0, ioIndex).trim();
-        const rawIoSection = desc.substring(ioIndex);
-
-        // Strip the header and split into individual lines
-        const ioContent = rawIoSection
-            .replace(/\*{0,2}I\/O Format[^\n:]*:\*{0,2}/i, '')
-            .replace(/\*\*/g, '');
-
-        const ioLines = ioContent
-            .split(/(?=Line \d+:)/g)
-            .map(l => l.trim())
-            .filter(Boolean);
-
-        return { mainText, ioLines };
-    };
-
-    const { mainText, ioLines } = parseDescription(currentProblem.description);
+    const {
+        title = 'Untitled Problem',
+        difficulty = 'Easy',
+        description = '',
+        tags = [],
+        examples = [],
+        constraints = []
+    } = currentProblem;
 
     return (
-        <div className="problem-description-wrapper">
-            {/* Header & Difficulty Badge */}
-            <div className="problem-header-container">
+        <div className="problem-description-panel">
+            <div className="problem-header">
                 <div className="problem-title-row">
-                    <h2 className="problem-title-text">{currentProblem.title}</h2>
-                </div>
-
-                <div className="problem-badges-strip">
-                    <span 
-                        className="problem-pill-badge"
-                        style={{ 
-                            backgroundColor: diffStyle.bg, 
-                            color: diffStyle.text, 
-                            borderColor: diffStyle.border 
-                        }}
-                    >
-                        {currentProblem.difficulty || 'Easy'}
+                    <h2 className="problem-title">{title}</h2>
+                    <span className={`difficulty-badge ${getDifficultyClass(difficulty)}`}>
+                        {formatDifficultyText(difficulty)}
                     </span>
-
-                    {currentProblem.topic && (
-                        <span className="problem-pill-badge problem-topic-badge">
-                            <Tag className="w-3 h-3 mr-1 opacity-70" />
-                            {currentProblem.topic}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Problem Body Content */}
-            <div className="problem-body-content">
-                
-                {/* Main Problem Statement */}
-                <div className="problem-markdown-view">
-                    <ReactMarkdown>{mainText}</ReactMarkdown>
                 </div>
 
-                {/* Dedicated I/O Format Section */}
-                {ioLines.length > 0 && (
-                    <div className="problem-section-group">
-                        <div className="problem-section-title">
-                            <Terminal className="w-3.5 h-3.5 mr-1 text-cyan-400" />
-                            <span>I/O Format</span>
-                        </div>
-                        <div className="problem-io-format-card">
-                            {ioLines.map((line, i) => (
-                                <div key={i} className="problem-io-format-row">
-                                    <ReactMarkdown>{line}</ReactMarkdown>
-                                </div>
+                {tags && tags.length > 0 && (
+                    <div className="problem-tags-row">
+                        <Tag className="w-3.5 h-3.5 mr-1.5 text-zinc-400" />
+                        <div className="tags-list">
+                            {tags.map((tag) => (
+                                <span key={`problem-tag-${tag}`} className="problem-tag">
+                                    {tag}
+                                </span>
                             ))}
                         </div>
                     </div>
                 )}
+            </div>
+
+            <div className="problem-body">
+                {/* Description */}
+                <div className="problem-section-group">
+                    <div className="problem-section-title">
+                        <BookOpen className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+                        <span>Description</span>
+                    </div>
+                    <div className="problem-description-text">
+                        {description}
+                    </div>
+                </div>
 
                 {/* Examples Section */}
-                {currentProblem.examples && currentProblem.examples.length > 0 && (
+                {examples && examples.length > 0 && (
                     <div className="problem-section-group">
                         <div className="problem-section-title">
-                            <Code2 className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                            <Layers className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
                             <span>Examples</span>
                         </div>
-
-                        <div className="problem-examples-stack">
-                            {currentProblem.examples.map((ex, i) => (
-                                <div key={i} className="problem-example-card">
-                                    <div className="example-card-header">
-                                        <span className="example-label">Example {i + 1}</span>
-                                        <button 
-                                            className="example-copy-btn"
-                                            onClick={() => copyExampleInput(ex.input, i)}
-                                            title="Copy Input"
-                                        >
-                                            {copiedIndex === i ? (
-                                                <>
-                                                    <Check className="w-3 h-3 text-emerald-400 mr-1" />
-                                                    <span className="text-emerald-400">Copied</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy className="w-3 h-3 mr-1" />
-                                                    <span>Copy</span>
-                                                </>
-                                            )}
-                                        </button>
+                        <div className="problem-examples-list">
+                            {examples.map((ex) => (
+                                <div 
+                                    key={ex.id || `example-${ex.input || ex.output || JSON.stringify(ex)}`} 
+                                    className="problem-example-card"
+                                >
+                                    <div className="example-field">
+                                        <span className="example-label">Input:</span>
+                                        <code>{ex.input}</code>
                                     </div>
-
-                                    <div className="example-block-content">
-                                        <div className="example-io-row">
-                                            <span className="example-io-label">Input:</span>
-                                            <code className="example-io-code">{ex.input}</code>
-                                        </div>
-
-                                        <div className="example-io-row">
-                                            <span className="example-io-label">Output:</span>
-                                            <code className="example-io-code">{ex.output}</code>
-                                        </div>
-
-                                        {ex.explanation && (
-                                            <div className="example-explanation-row">
-                                                <span className="example-io-label">Explanation:</span>
-                                                <span className="example-explanation-text">{ex.explanation}</span>
-                                            </div>
-                                        )}
+                                    <div className="example-field">
+                                        <span className="example-label">Output:</span>
+                                        <code>{ex.output}</code>
                                     </div>
+                                    {ex.explanation && (
+                                        <div className="example-field">
+                                            <span className="example-label">Explanation:</span>
+                                            <p className="example-explanation">{ex.explanation}</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -166,18 +103,17 @@ const ProblemDescriptionPanel = ({ currentProblem }) => {
                 )}
 
                 {/* Constraints Section */}
-                {currentProblem.constraints && currentProblem.constraints.length > 0 && (
+                {constraints && constraints.length > 0 && (
                     <div className="problem-section-group">
                         <div className="problem-section-title">
                             <AlertCircle className="w-3.5 h-3.5 mr-1 text-amber-400" />
                             <span>Constraints</span>
                         </div>
-
                         <div className="problem-constraints-card">
-                            <ul className="problem-constraints-list">
-                                {currentProblem.constraints.map((c, i) => (
-                                    <li key={i} className="problem-constraint-item">
-                                        <code>{c}</code>
+                            <ul className="constraints-list">
+                                {constraints.map((constraint) => (
+                                    <li key={`constraint-${constraint}`} className="constraint-item">
+                                        <code>{constraint}</code>
                                     </li>
                                 ))}
                             </ul>

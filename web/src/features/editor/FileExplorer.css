@@ -1,61 +1,126 @@
 .file-explorer-container {
-    color: #c9d1d9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    padding: 15px 0;
-    width: 100%;
-    overflow-y: auto;
+  background-color: #0b0f19;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  padding: 8px 0;
+  width: 100%;
+  overflow-y: auto;
 }
 
-.explorer-header {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #8b949e;
-    padding: 0 15px 10px;
-    letter-spacing: 1px;
+.file-explorer-header {
+  padding: 0 12px 8px;
 }
 
-.file-tree {
-    display: flex;
-    flex-direction: column;
+.folder-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background-color: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.file-node, .folder-name {
-    padding: 4px 15px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
-    transition: background 0.1s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    user-select: none;
+.folder-toggle-btn:hover {
+  background-color: #1e293b;
+  color: #ffffff;
 }
 
-.file-node:hover, .folder-name:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+.folder-name {
+  color: #f8fafc;
 }
 
-.file-node.active {
-    background-color: rgba(88, 166, 255, 0.15);
-    color: #58a6ff;
+.file-tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-/* Remove default padding for active nodes to keep alignment perfectly straight */
-.file-node.active {
-    padding-left: 13px;
-    border-left: 2px solid #58a6ff;
+.file-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+  margin: 1px 4px;
+  border-radius: 5px;
+  background-color: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.folder-children {
-    padding-left: 12px;
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
-    margin-left: 20px;
-    margin-top: 2px;
+.file-item-row:hover {
+  background-color: #161f30;
 }
 
-.file-icon, .folder-icon {
-    font-size: 1rem;
-    opacity: 0.8;
+.file-item-row.active {
+  background-color: #0c253d;
+  border-left: 2px solid #38bdf8;
+}
+
+.file-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  padding: 4px;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+
+.file-item-row.active .file-item-btn {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.file-item-btn:hover {
+  color: #ffffff;
+}
+
+.file-item-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.file-item-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-item-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  color: #cbd5e1;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.file-item-row:hover .file-item-delete-btn {
+  opacity: 1;
+}
+
+.file-item-delete-btn:hover {
+  color: #ffffff;
+  background-color: #dc2626;
 }

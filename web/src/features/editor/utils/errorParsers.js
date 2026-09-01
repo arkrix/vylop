@@ -1,125 +1,232 @@
-export const resolveFileName = (rawFile, files) => {
+/**
+ * Maps error severities to UI diagnostic colors.
+ */
+export const getSeverityColor = (severity) => {
+    if (severity === 'error') return '#f87171';
+    if (severity === 'warning') return '#fbbf24';
+    return '#38bdf8';
+};
+
+/**
+ * Resolves raw file names/paths from compiler error logs against workspace files.
+ */
+export const resolveFileName = (rawFile, files = {}) => {
     if (!rawFile) return rawFile;
     if (files[rawFile]) return rawFile;
-    
+
     const cleaned = rawFile.replace(/^\.\//, '').replace(/^\//, '');
     if (files[cleaned]) return cleaned;
-    
-    const match = Object.keys(files).find(f => 
-        f.endsWith('/' + cleaned) || f.endsWith('\\' + cleaned) || f === cleaned
+
+    const fileKeys = Object.keys(files);
+    const match = fileKeys.find((f) => 
+        f.endsWith(`/${cleaned}`) || f.endsWith(`\\${cleaned}`) || f === cleaned
     );
-    return match || rawFile;
+    if (match) return match;
+
+    const baseName = cleaned.split('/').pop()?.split('\\').pop();
+    const baseMatch = fileKeys.find((f) => f.split('/').pop()?.split('\\').pop() === baseName);
+    return baseMatch || rawFile;
 };
 
-export const parseJavaErrors = (output, files) => {
-    const errors = [];
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const regex = /([a-zA-Z0-9_/\\.-]+\.java):(\d+):\s*(error|warning):\s*(.+)/g;
-    let match;
-    while ((match = regex.exec(strOutput)) !== null) {
-        errors.push({ 
-            fileName: resolveFileName(match[1], files), 
-            line: parseInt(match[2], 10), 
-            col: 1, 
-            message: match[4].trim(), 
-            severity: match[3] === 'error' ? 'error' : 'warning' 
-        });
+const parseSeverity = (raw = '') => {
+    const lower = raw.toLowerCase();
+    if (lower.includes('warn')) return 'warning';
+    if (lower.includes('note') || lower.includes('info')) return 'info';
+    return 'error';
+};
+
+const safeParseInt = (val, fallback = 1) => {
+    const parsed = Number.parseInt(val, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+};
+
+/**
+ * Parses GCC, Clang, and Java compiler error outputs deterministically without regex backtracking.
+ */
+const parseCompilerOrGcc = (line, files) => {
+    if (!line?.includes(':')) return null;
+
+    const colonIdx1 = line.indexOf(':');
+    if (colonIdx1 <= 0) return null;
+
+    const rawFile = line.slice(0, colonIdx1).trim();
+    const rest = line.slice(colonIdx1 + 1);
+    const colonIdx2 = rest.indexOf(':');
+    if (colonIdx2 <= 0) return null;
+
+    const lineStr = rest.slice(0, colonIdx2).trim();
+    const lineNum = Number.parseInt(lineStr, 10);
+    if (Number.isNaN(lineNum)) return null;
+
+    const afterLine = rest.slice(colonIdx2 + 1);
+    const colonIdx3 = afterLine.indexOf(':');
+
+    let colNum = 1;
+    let sevAndMsg = afterLine;
+
+    if (colonIdx3 > 0) {
+        const potentialCol = afterLine.slice(0, colonIdx3).trim();
+        const parsedCol = Number.parseInt(potentialCol, 10);
+        if (!Number.isNaN(parsedCol)) {
+            colNum = parsedCol;
+            sevAndMsg = afterLine.slice(colonIdx3 + 1);
+        }
     }
-    return errors;
-};
 
-export const parsePythonErrors = (output, files) => {
-    const errors = [];
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const regex = /File "([^"]+)",\s*line\s*(\d+)/g;
-    const msgRegex = /^(\w+Error|\w+Exception):\s*(.+)/m;
-    let match;
-    while ((match = regex.exec(strOutput)) !== null) {
-        const msgMatch = strOutput.slice(match.index).match(msgRegex);
-        errors.push({ 
-            fileName: resolveFileName(match[1], files), 
-            line: parseInt(match[2], 10), 
-            col: 1, 
-            message: msgMatch ? `${msgMatch[1]}: ${msgMatch[2]}` : 'Error', 
-            severity: 'error' 
-        });
+    const colonIdxMsg = sevAndMsg.indexOf(':');
+    let rawSev = 'error';
+    let message = sevAndMsg.trim();
+
+    if (colonIdxMsg > 0) {
+        const potentialSev = sevAndMsg.slice(0, colonIdxMsg).trim().toLowerCase();
+        if (potentialSev.includes('error') || potentialSev.includes('warn') || potentialSev.includes('note') || potentialSev.includes('info')) {
+            rawSev = potentialSev;
+            message = sevAndMsg.slice(colonIdxMsg + 1).trim();
+        }
     }
-    return errors;
+
+    if (!message) return null;
+
+    return {
+        fileName: resolveFileName(rawFile, files),
+        line: lineNum,
+        col: colNum,
+        severity: parseSeverity(rawSev),
+        message
+    };
 };
 
-export const parseCppErrors = (output, files) => {
-    const errors = [];
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const regex = /([a-zA-Z0-9_/\\.-]+\.(?:cpp|cc|h|hpp)):(\d+):(\d+):\s*(error|warning|note):\s*(.+)/g;
-    let match;
-    while ((match = regex.exec(strOutput)) !== null) {
-        errors.push({ 
-            fileName: resolveFileName(match[1], files), 
-            line: parseInt(match[2], 10), 
-            col: parseInt(match[3], 10), 
-            message: match[5].trim(), 
-            severity: match[4] === 'error' ? 'error' : match[4] === 'warning' ? 'warning' : 'info' 
-        });
+/**
+ * Parses Python tracebacks.
+ */
+const parsePython = (lines, index, files) => {
+    const line = lines[index];
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith('File "')) return null;
+
+    const quoteEnd = trimmed.indexOf('"', 6);
+    if (quoteEnd === -1) return null;
+
+    const rawFile = trimmed.slice(6, quoteEnd);
+    const afterFile = trimmed.slice(quoteEnd + 1);
+
+    const lineKeywordIdx = afterFile.indexOf('line ');
+    if (lineKeywordIdx === -1) return null;
+
+    const lineNumStr = afterFile.slice(lineKeywordIdx + 5).trimStart().split(/[\s,]/)[0];
+    const lineNum = safeParseInt(lineNumStr, 1);
+
+    let errorMsg = "Python Runtime Exception";
+    const maxScan = Math.min(index + 4, lines.length);
+
+    for (let j = index + 1; j < maxScan; j += 1) {
+        const candidate = lines[j].trim();
+        if (candidate && !candidate.startsWith('File ') && !candidate.startsWith('^')) {
+            errorMsg = candidate;
+        }
     }
-    return errors;
+
+    return {
+        fileName: resolveFileName(rawFile, files),
+        line: lineNum,
+        col: 1,
+        severity: 'error',
+        message: errorMsg
+    };
 };
 
-export const parseGoErrors = (output, files) => {
-    const errors = [];
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const regex = /\.?\/?([\w/.-]+\.go):(\d+):(\d+):\s*(.+)/g;
-    let match;
-    while ((match = regex.exec(strOutput)) !== null) {
-        errors.push({ 
-            fileName: resolveFileName(match[1], files), 
-            line: parseInt(match[2], 10), 
-            col: parseInt(match[3], 10), 
-            message: match[4].trim(), 
-            severity: 'error' 
-        });
+/**
+ * Parses Node.js / JavaScript runtime stack frames.
+ */
+const parseJavaScript = (lines, index, files) => {
+    const line = lines[index];
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith('at ')) return null;
+
+    const lastColon = trimmed.lastIndexOf(':');
+    if (lastColon === -1) return null;
+
+    const secondLastColon = trimmed.lastIndexOf(':', lastColon - 1);
+    if (secondLastColon === -1) return null;
+
+    let colStr = trimmed.slice(lastColon + 1);
+    if (colStr.endsWith(')')) {
+        colStr = colStr.slice(0, -1);
     }
-    return errors;
-};
+    const colNum = safeParseInt(colStr, 1);
 
-export const parseRustErrors = (output, files) => {
-    const errors = [];
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const regex = /-+>\s*([\w/.-]+\.rs):(\d+):(\d+)/g;
-    const msgRegex = /^(error|warning)(\[[\w]+\])?:\s*(.+)/m;
-    let match;
-    while ((match = regex.exec(strOutput)) !== null) {
-        const before = strOutput.slice(Math.max(0, match.index - 200), match.index);
-        const msgMatch = before.match(msgRegex);
-        errors.push({ 
-            fileName: resolveFileName(match[1], files), 
-            line: parseInt(match[2], 10), 
-            col: parseInt(match[3], 10), 
-            message: msgMatch ? msgMatch[3].trim() : 'Error', 
-            severity: msgMatch?.[1] === 'warning' ? 'warning' : 'error' 
-        });
+    const lineStr = trimmed.slice(secondLastColon + 1, lastColon);
+    const lineNum = safeParseInt(lineStr, 1);
+
+    let filePart = trimmed.slice(0, secondLastColon);
+    const openParen = filePart.lastIndexOf('(');
+    if (openParen !== -1) {
+        filePart = filePart.slice(openParen + 1);
+    } else {
+        const atIdx = filePart.indexOf('at ');
+        filePart = filePart.slice(atIdx + 3).trim();
     }
-    return errors;
+    const rawFile = filePart.trim();
+    if (!rawFile) return null;
+
+    let errorMsg = lines[0] ? lines[0].trim() : "JavaScript Exception";
+    if (errorMsg.startsWith("at ")) errorMsg = "Runtime Exception";
+
+    return {
+        fileName: resolveFileName(rawFile, files),
+        line: lineNum,
+        col: colNum,
+        severity: 'error',
+        message: errorMsg
+    };
 };
 
-export const parseErrors = (output, language, files) => {
-    if (!output || output === 'Running...') return [];
-    
-    const strOutput = typeof output === 'string' ? output : JSON.stringify(output);
-    const hasError = /(error|exception|traceback|failed|undefined|cannot|no such|warning)/i.test(strOutput);
-    if (!hasError) return [];
-    
-    switch (language) {
-        case 'java': return parseJavaErrors(strOutput, files);
-        case 'python': return parsePythonErrors(strOutput, files);
-        case 'cpp': return parseCppErrors(strOutput, files);
-        case 'go': return parseGoErrors(strOutput, files);
-        case 'rust': return parseRustErrors(strOutput, files);
-        default: return [];
+/**
+ * Parses Rust compiler diagnostics.
+ */
+const parseRust = (lines, index, files) => {
+    const line = lines[index];
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith('-->')) return null;
+
+    const rest = trimmed.slice(3).trim();
+    const parts = rest.split(':');
+    if (parts.length < 3) return null;
+
+    const rawFile = parts[0].trim();
+    const lineNum = safeParseInt(parts[1], 1);
+    const colNum = safeParseInt(parts[2], 1);
+    const prevLine = index > 0 ? lines[index - 1].trim() : "Rust Compiler Error";
+
+    return {
+        fileName: resolveFileName(rawFile, files),
+        line: lineNum,
+        col: colNum,
+        severity: 'error',
+        message: prevLine
+    };
+};
+
+/**
+ * Parses execution/compiler output into structured editor diagnostics.
+ */
+export const parseErrors = (outputText, language, files = {}) => {
+    if (!outputText || typeof outputText !== 'string') return [];
+
+    const lines = outputText.split(/\r?\n/);
+    const diagnostics = [];
+
+    for (let i = 0; i < lines.length; i += 1) {
+        const diag = 
+            parseCompilerOrGcc(lines[i], files) ||
+            parsePython(lines, i, files) ||
+            parseJavaScript(lines, i, files) ||
+            parseRust(lines, i, files);
+
+        if (diag) {
+            diagnostics.push(diag);
+        }
     }
-};
 
-export const getSeverityColor = (severity) => {
-    if (severity === 'error') return '#ff6b6b';
-    if (severity === 'warning') return '#f0883e';
-    return '#58a6ff';
+    return diagnostics;
 };
