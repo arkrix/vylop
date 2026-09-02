@@ -2,6 +2,7 @@ package com.vylop.backend.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -34,7 +35,7 @@ public class RoomFile {
     @PrePersist
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public RoomFile() {

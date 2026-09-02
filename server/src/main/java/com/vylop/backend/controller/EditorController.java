@@ -15,6 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Controller
 public class EditorController {
 
+    private static final String KEY_USERNAME = "username";
+
     private final SimpMessagingTemplate messagingTemplate;
     private static final Map<String, Map<String, RoomParticipant>> roomUsers = new ConcurrentHashMap<>();
 
@@ -28,14 +30,14 @@ public class EditorController {
         
         for (RoomParticipant p : usersMap.values()) {
             Map<String, Object> u = new HashMap<>();
-            u.put("username", p.getUsername());
+            u.put(KEY_USERNAME, p.getUsername());
             u.put("role", p.getRole().name());
             userList.add(u);
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("type", type);
-        response.put("username", username);
+        response.put(KEY_USERNAME, username);
         response.put("users", userList);
 
         messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
@@ -46,7 +48,7 @@ public class EditorController {
                          @Payload Map<String, Object> payload,
                          SimpMessageHeaderAccessor headerAccessor) {
         
-        String username = (String) payload.get("username");
+        String username = (String) payload.get(KEY_USERNAME);
         if (username == null || username.isBlank()) return;
 
         roomUsers.putIfAbsent(roomId, new ConcurrentHashMap<>());
@@ -55,9 +57,12 @@ public class EditorController {
         ParticipantRole assignedRole = usersInRoom.isEmpty() ? ParticipantRole.HOST : ParticipantRole.READ_ONLY;
         usersInRoom.put(username, new RoomParticipant(username, assignedRole));
 
-        if (headerAccessor != null && headerAccessor.getSessionAttributes() != null) {
-            headerAccessor.getSessionAttributes().put("username", username);
-            headerAccessor.getSessionAttributes().put("roomId", roomId);
+        if (headerAccessor != null) {
+            Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+            if (sessionAttributes != null) {
+                sessionAttributes.put(KEY_USERNAME, username);
+                sessionAttributes.put("roomId", roomId);
+            }
         }
 
         broadcastUserList(roomId, "JOIN", username);
@@ -67,7 +72,7 @@ public class EditorController {
     public void leaveRoom(@DestinationVariable String roomId,
                           @Payload Map<String, Object> payload) {
         
-        String username = (String) payload.get("username");
+        String username = (String) payload.get(KEY_USERNAME);
         Map<String, RoomParticipant> usersInRoom = roomUsers.get(roomId);
 
         if (usersInRoom != null && username != null) {
@@ -100,7 +105,9 @@ public class EditorController {
                 ParticipantRole newRole = ParticipantRole.valueOf(newRoleStr.toUpperCase());
                 usersInRoom.get(targetUser).setRole(newRole);
                 broadcastUserList(roomId, "ROLE_UPDATE", targetUser);
-            } catch (IllegalArgumentException ignored) {}
+            } catch (IllegalArgumentException e) {
+                // Invalid participant role string is ignored safely
+            }
         }
     }
 

@@ -13,6 +13,8 @@ import java.util.Optional;
 @Service
 public class AuthService {
 
+    private static final String ERROR_KEY = "error";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -23,10 +25,10 @@ public class AuthService {
 
     public Map<String, String> registerUser(RegisterRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            return Map.of("error", "Username is already taken!");
+            return Map.of(ERROR_KEY, "Username is already taken!");
         }
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return Map.of("error", "Email is already registered!");
+            return Map.of(ERROR_KEY, "Email is already registered!");
         }
 
         User newUser = new User();
@@ -47,6 +49,6 @@ public class AuthService {
                 return Map.of("message", "Logged in successfully!", "username", user.getUsername());
             }
         }
-        return Map.of("error", "Invalid username or password!");
+        return Map.of(ERROR_KEY, "Invalid username or password!");
     }
 }

@@ -35,7 +35,6 @@ import BottomPanel from './components/BottomPanel';
 import EditorModals from './components/EditorModals';
 import PageLoader from '../../components/common/PageLoader';
 
-const ALLOWED_THEMES = new Set(['vs-dark', 'vs-light', 'light']);
 const ALLOWED_EXTENSIONS = new Set(['.java', '.py', '.cpp', '.js', '.ts', '.go', '.rs', '.md', '.txt']);
 const ERROR_KEYWORDS = ['error', 'exception', 'traceback', 'failed'];
 
@@ -91,8 +90,8 @@ const parseErrorLocation = (line, files) => {
 };
 
 const sanitizeTheme = (theme) => {
-    if (ALLOWED_THEMES.has(theme)) {
-        return theme;
+    if (theme === 'vs-light' || theme === 'light') {
+        return 'vs-light';
     }
     return 'vs-dark';
 };
@@ -345,7 +344,7 @@ const updateYDocContent = (ydoc, targetFile, newCode) => {
         if (ytext.length > 0) {
             ytext.delete(0, ytext.length);
         }
-        ytext.insert(0, newCode);
+        newCode && ytext.insert(0, newCode);
     });
 };
 
@@ -1653,9 +1652,13 @@ const CodeEditor = () => {
     };
 
     const handleThemeChange = (newTheme) => {
-        const safeTheme = sanitizeTheme(newTheme);
+        const safeTheme = newTheme === 'vs-light' || newTheme === 'light' ? 'vs-light' : 'vs-dark';
         setEditorTheme(safeTheme);
-        localStorage.setItem('editorTheme', safeTheme);
+        if (safeTheme === 'vs-light') {
+            localStorage.setItem('editorTheme', 'vs-light');
+        } else {
+            localStorage.setItem('editorTheme', 'vs-dark');
+        }
         if (monacoRef.current) {
             monacoRef.current.editor.setTheme(safeTheme);
         }

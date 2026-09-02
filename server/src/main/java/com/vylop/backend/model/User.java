@@ -2,6 +2,7 @@ package com.vylop.backend.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -27,7 +28,7 @@ public class User {
     // This sets the timestamp the moment a user is created
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public User() {

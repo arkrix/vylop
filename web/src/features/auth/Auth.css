@@ -445,22 +445,22 @@
   width: 100%;
   padding: 12px 18px;
   margin-top: 6px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  background-color: #10b981;
-  border: 1px solid #10b981;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  background-color: #047857;
+  border: 1px solid #047857;
   border-radius: 10px;
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 14px rgba(4, 120, 87, 0.35);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .primary-action-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  background-color: #059669;
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+  background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+  background-color: #065f46;
+  box-shadow: 0 6px 20px rgba(4, 120, 87, 0.45);
   transform: translateY(-1px);
 }
 

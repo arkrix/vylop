@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -38,35 +38,51 @@ public class JwtUtils {
     }
 
     public String generateToken(String username) {
+        Instant now = Instant.now();
+        Instant expiry = now.plusMillis(jwtExpiration);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(Claims.SUBJECT, username);
+        claims.put(Claims.ISSUED_AT, now.getEpochSecond());
+        claims.put(Claims.EXPIRATION, expiry.getEpochSecond());
+
         return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setClaims(claims)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        Instant now = Instant.now();
+        Instant expiry = now.plusMillis(jwtExpiration);
+
+        Map<String, Object> claims = new HashMap<>(extraClaims);
+        claims.put(Claims.SUBJECT, userDetails.getUsername());
+        claims.put(Claims.ISSUED_AT, now.getEpochSecond());
+        claims.put(Claims.EXPIRATION, expiry.getEpochSecond());
+
         return Jwts.builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setClaims(claims)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        return extractExpiration(token).isBefore(Instant.now());
     }
 
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+    private Instant extractExpiration(String token) {
+        Claims claims = extractAllClaims(token);
+        Object exp = claims.get(Claims.EXPIRATION);
+        if (exp instanceof Number number) {
+            return Instant.ofEpochSecond(number.longValue());
+        }
+        return Instant.MIN;
     }
 
     private Claims extractAllClaims(String token) {

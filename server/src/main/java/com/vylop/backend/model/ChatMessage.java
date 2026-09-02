@@ -1,6 +1,7 @@
 package com.vylop.backend.model;
 
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 public class ChatMessage {
@@ -13,8 +14,8 @@ public class ChatMessage {
     public ChatMessage(String sender, String content) {
         this.sender = sender;
         this.content = content;
-        // Formats time as "HH:mm"
-        this.timestamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+        // Formats time as "HH:mm" in UTC
+        this.timestamp = LocalTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
     // Getters and Setters

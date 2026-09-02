@@ -12,6 +12,8 @@ import java.util.UUID;
 @RequestMapping("/api/workspace")
 public class WorkspaceController {
 
+    private static final String ERROR_PREFIX = "Error";
+
     private final WorkspaceService workspaceService;
 
     public WorkspaceController(WorkspaceService workspaceService) {
@@ -29,7 +31,7 @@ public class WorkspaceController {
             @RequestParam String roomName) {
 
         String response = workspaceService.registerRoom(roomId, username, roomName);
-        if (response.startsWith("Error")) {
+        if (response.startsWith(ERROR_PREFIX)) {
             return ResponseEntity.badRequest().body(response);
         }
         return ResponseEntity.ok(response);
@@ -58,7 +60,7 @@ public class WorkspaceController {
             @RequestBody Map<String, String> files) {
         
         String response = workspaceService.saveWorkspace(roomId, username, roomName, files);
-        if (response.startsWith("Error")) {
+        if (response.startsWith(ERROR_PREFIX)) {
             return ResponseEntity.badRequest().body(response);
         }
         return ResponseEntity.ok(response);
@@ -75,7 +77,7 @@ public class WorkspaceController {
             @RequestParam String username) {
         
         String response = workspaceService.deleteWorkspace(roomId, username);
-        if (response.startsWith("Error")) {
+        if (response.startsWith(ERROR_PREFIX)) {
             return ResponseEntity.badRequest().body(response);
         }
         return ResponseEntity.ok(response);

@@ -1,6 +1,5 @@
 import React from 'react';
 import { BookOpen, Tag, AlertCircle, Layers } from 'lucide-react';
-import './ProblemDescriptionPanel.css';
 
 const getDifficultyClass = (difficulty = '') => {
     const diff = difficulty.toLowerCase();
