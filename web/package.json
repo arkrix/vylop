@@ -32,7 +32,7 @@
     "uuid": "^11.0.5",
     "y-monaco": "^0.1.6",
     "y-protocols": "^1.0.7",
-    "yjs": "^13.6.30"
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
