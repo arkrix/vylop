@@ -53,7 +53,7 @@
     "jsdom": "^29.1.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
-    "vite": "^6.0.5",
+    "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },
   "overrides": {
