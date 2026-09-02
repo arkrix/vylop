@@ -10,6 +10,10 @@ updates:
     labels:
       - "dependencies"
       - "backend"
+    groups:
+      backend-dependencies:
+        patterns:
+          - "*"
 
   # React Frontend (npm)
   - package-ecosystem: "npm"
@@ -21,8 +25,12 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"
 
-  # GitHub Actions CI Workflows
+  # GitHub Actions Workflows
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -32,3 +40,7 @@ updates:
     labels:
       - "dependencies"
       - "ci/cd"
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
