@@ -16,7 +16,7 @@ import axios from 'axios';
 import PageLoader from '../../components/common/PageLoader';
 import './Auth.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://vylop.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const getSafeInternalRedirect = (url) => {
   if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
