@@ -336,9 +336,6 @@ const EditorModals = ({
                 <option value="python">Python</option>
                 <option value="cpp">C++</option>
                 <option value="javascript">JavaScript</option>
-                <option value="typescript">TypeScript</option>
-                <option value="go">Go</option>
-                <option value="rust">Rust</option>
                 <option value="markdown">Markdown</option>
               </select>
             </div>
@@ -375,7 +372,7 @@ const EditorModals = ({
             <input 
               type="file" 
               multiple 
-              accept=".java,.py,.cpp,.js,.ts,.go,.rs,.md,.txt"
+              accept=".java,.py,.cpp,.js,.md,.txt"
               ref={fileInputRef} 
               style={{ display: 'none' }} 
               onChange={handleFileUpload} 

@@ -96,10 +96,15 @@ const sanitizeTheme = (theme) => {
     return 'vs-dark';
 };
 
-const resolveEditorLanguage = (fileObj) => {
-    if (!fileObj?.language) return 'plaintext';
-    if (fileObj.language === 'cpp') return 'cpp';
-    return fileObj.language;
+const resolveEditorLanguage = (fileObj, activeFileName) => {
+    if (fileObj?.language) {
+        if (fileObj.language === 'cpp') return 'cpp';
+        return fileObj.language;
+    }
+    if (activeFileName) {
+        return getLanguageFromExtension(activeFileName);
+    }
+    return 'plaintext';
 };
 
 const checkIsErrorLine = (line) => {
@@ -631,22 +636,34 @@ const runCodeHelper = async (config) => {
     try {
         const fileData = collectFilesData(files, ydoc);
         const envVarsPayload = buildEnvVarsPayload(secrets);
+        const token = localStorage.getItem('token');
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
 
         const response = await axios.post(`${API_BASE_URL}/api/execute`, {
-            language: files[activeFile]?.language || "plaintext",
+            language: files[activeFile]?.language || getLanguageFromExtension(activeFile),
             code: getYTextContent(ydoc, activeFile),
             input: inputToRun,
             mainFile: activeFile,
             files: fileData,
             envVars: envVarsPayload
-        }, { transformResponse: [(data) => data] });
+        }, { 
+            headers,
+            transformResponse: [(data) => data] 
+        });
 
         const outputText = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : String(response.data);
         setters.setOutput(outputText);
-        processExecutionErrors(outputText, files[activeFile]?.language || "plaintext", files, setters.setEditorErrors);
+        processExecutionErrors(outputText, files[activeFile]?.language || getLanguageFromExtension(activeFile), files, setters.setEditorErrors);
     } catch (error_) {
         console.debug("Sandbox code execution failure:", error_);
-        setters.setOutput("Execution failed: Connection to sandbox runtime error.");
+        const errMessage = error_.response?.data || "Execution failed: Connection to sandbox runtime error.";
+        setters.setOutput(typeof errMessage === 'object' ? JSON.stringify(errMessage, null, 2) : String(errMessage));
     } finally {
         setters.setIsRunning(false);
     }
@@ -663,7 +680,7 @@ const handleSubmitHelper = async (config) => {
 
     const fileData = collectFilesData(files, ydoc);
     const envVarsPayload = buildEnvVarsPayload(secrets);
-    const language = files[activeFile]?.language;
+    const language = files[activeFile]?.language || getLanguageFromExtension(activeFile);
     const code = getYTextContent(ydoc, activeFile);
 
     const result = await evaluateSubmission(currentProblem, activeFile, language, code, fileData, envVarsPayload);
@@ -678,7 +695,11 @@ const saveWorkspaceHelper = async (config) => {
     setIsSaving(true);
     try {
         const fileData = collectFilesData(files, ydoc);
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         await axios.post(`${API_BASE_URL}/api/workspace/${encodeURIComponent(roomId)}/save`, fileData, {
+            headers,
             params: {
                 username: String(username || '').trim(),
                 roomName: String(roomName || '').trim()
@@ -980,6 +1001,8 @@ const DiagnosticDrawer = (props) => {
 const EditorWorkspacePane = (props) => {
     const { activeFile, files, showMarkdownPreview, editorTheme, canEdit, handleEditorDidMount, ydocRef, activeFileErrors, onJumpToLine, onClearErrors } = props;
     const isMarkdown = showMarkdownPreview && files[activeFile]?.language === "markdown";
+    const currentLanguage = resolveEditorLanguage(files[activeFile], activeFile);
+
     return (
         <div className="editor-wrapper full-height" style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
             {isMarkdown ? (
@@ -1021,7 +1044,7 @@ const EditorWorkspacePane = (props) => {
                         path={activeFile} 
                         height="100%" 
                         width="100%" 
-                        language={resolveEditorLanguage(files[activeFile])} 
+                        language={currentLanguage} 
                         theme={editorTheme} 
                         onMount={handleEditorDidMount} 
                         options={{ 
@@ -1246,7 +1269,7 @@ const handleLanguageSelectHelper = (config) => {
     if (!isHost || !activeFile) return;
     
     const newLang = e.target.value;
-    const currentLang = files[activeFile]?.language || "plaintext";
+    const currentLang = files[activeFile]?.language || getLanguageFromExtension(activeFile);
     if (newLang === currentLang) return;
 
     const currentText = getYTextContent(ydocRef.current, activeFile).trim();
@@ -1383,6 +1406,19 @@ const CodeEditor = () => {
             }
         }
     }, [files, activeFile, openFiles]);
+
+    // Force Monaco to synchronize its active language tokenization model
+    useEffect(() => {
+        if (activeFile && editorRef.current && monacoRef.current) {
+            const model = editorRef.current.getModel();
+            if (model) {
+                const targetLang = resolveEditorLanguage(files[activeFile], activeFile);
+                if (targetLang && targetLang !== 'plaintext') {
+                    monacoRef.current.editor.setModelLanguage(model, targetLang);
+                }
+            }
+        }
+    }, [activeFile, files]);
 
     const getUserColor = (user) => {
         if (!userColorMap.current[user]) {
@@ -1588,7 +1624,7 @@ const CodeEditor = () => {
                 } catch (error_) {
                     console.debug("Binding reset on active file clear:", error_);
                 }
-                ymonacoBindingRef.current = null;
+                ymonacoBindingRef.current = null; 
             }
             return;
         }
@@ -1603,6 +1639,17 @@ const CodeEditor = () => {
         window.monaco = monaco;
 
         monaco.editor.setTheme(editorTheme);
+
+        // Force language registration directly onto the model upon mounting
+        if (activeFile) {
+            const model = editor.getModel();
+            if (model) {
+                const targetLang = resolveEditorLanguage(files[activeFile], activeFile);
+                if (targetLang && targetLang !== 'plaintext') {
+                    monaco.editor.setModelLanguage(model, targetLang);
+                }
+            }
+        }
 
         if (document.fonts) {
             document.fonts.ready.then(() => {
@@ -1797,6 +1844,14 @@ const CodeEditor = () => {
         } else {
             executeLanguageSwitch({ ydoc: ydocRef.current, oldFile, newLang, newCode, stompRef: stompClient, roomId, username, setters });
         }
+
+        // Keep Monaco grammar aligned immediately on change
+        if (editorRef.current && monacoRef.current) {
+            const model = editorRef.current.getModel();
+            if (model) {
+                monacoRef.current.editor.setModelLanguage(model, newLang);
+            }
+        }
     };
 
     const handleLanguageSelect = (e) => {
@@ -1878,14 +1933,40 @@ const CodeEditor = () => {
 
     const handleExitWorkspace = async (saveBeforeLeave = false) => {
         setIsLeaveModalOpen(false);
-        setIsLeavingWorkspace(true);
 
-        if (saveBeforeLeave) {
-            await saveWorkspace();
+        try {
+            if (saveBeforeLeave) {
+                await saveWorkspace();
+            }
+        } catch (err) {
+            console.warn("Save on exit encountered an error:", err);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        navigate('/');
+        if (stompClient.current?.connected) {
+            try {
+                stompClient.current.send(`/app/room/${roomId}/leave`, {}, JSON.stringify({ 
+                    username, 
+                    type: "LEAVE" 
+                }));
+                stompClient.current.disconnect();
+            } catch (e) {
+                console.debug("Socket disconnect on exit:", e);
+            }
+            isConnected.current = false;
+            stompClient.current = null;
+        }
+
+        if (ymonacoBindingRef.current) {
+            try { ymonacoBindingRef.current.destroy(); } catch (_) {}
+            ymonacoBindingRef.current = null;
+        }
+        if (vimInstanceRef.current) {
+            try { vimInstanceRef.current.dispose(); } catch (_) {}
+            vimInstanceRef.current = null;
+        }
+
+        loadedRooms.delete(roomId);
+        navigate('/', { replace: true });
     };
 
     if (!isWorkspaceLoaded) {
@@ -2016,7 +2097,7 @@ const CodeEditor = () => {
                     handleDeleteIconClick={handleDeleteIconClick}
                     formatCode={() => {
                         if (!canEdit || !activeFile) return;
-                        triggerCodeFormat(editorRef.current, files[activeFile]?.language);
+                        triggerCodeFormat(editorRef.current, files[activeFile]?.language || getLanguageFromExtension(activeFile));
                     }}
                     isVimMode={isVimMode}
                     toggleVimMode={() => triggerVimModeToggle(editorRef.current, isVimMode, vimInstanceRef, setIsVimMode)}

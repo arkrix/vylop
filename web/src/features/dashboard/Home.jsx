@@ -22,7 +22,7 @@ import {
 import PageLoader from '../../components/common/PageLoader';
 import './Home.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const Home = () => {
     const fetchWorkspaces = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/workspace/user/${encodeURIComponent(username)}`);
-        setWorkspaces(response.data || []);
+        setWorkspaces(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         console.warn("Failed to load cloud workspaces:", err);
         setWorkspaces([]);
@@ -122,10 +122,11 @@ const Home = () => {
 
     setIsJoinModalOpen(false);
 
+    const safeDisplayId = parsedId ? String(parsedId).substring(0, 8) : '';
     setPageTransition({
       active: true,
       message: "Connecting to room...",
-      subtext: `Joining peer session [${parsedId.substring(0, 8)}...]...`
+      subtext: `Joining peer session [${safeDisplayId}...]...`
     });
 
     await new Promise(resolve => setTimeout(resolve, 1300));
@@ -161,6 +162,7 @@ const Home = () => {
   };
 
   const handleOpenWorkspace = async (ws) => {
+    const targetRoomId = ws.roomId || ws.id;
     const targetRoomName = ws.name || "Cloud Workspace";
     const targetMode = ws.roomType || 'SANDBOX';
 
@@ -172,7 +174,7 @@ const Home = () => {
 
     await new Promise(resolve => setTimeout(resolve, 1300));
 
-    navigate(`/room/${ws.roomId}`, {
+    navigate(`/room/${targetRoomId}`, {
       state: {
         username,
         roomName: targetRoomName,
@@ -186,7 +188,7 @@ const Home = () => {
 
     try {
       await axios.delete(`${API_BASE_URL}/api/workspace/${deleteTargetId}/delete?username=${encodeURIComponent(username)}`);
-      setWorkspaces(prev => prev.filter(w => w.roomId !== deleteTargetId));
+      setWorkspaces(prev => prev.filter(w => (w.roomId || w.id) !== deleteTargetId));
       toast.success("Workspace deleted");
     } catch (e) {
       console.warn("Failed to delete workspace:", e);
@@ -230,62 +232,67 @@ const Home = () => {
 
     return (
       <div className="dash-workspaces-grid">
-        {workspaces.map((ws) => (
-          <div 
-            key={ws.roomId} 
-            className="dash-workspace-card"
-          >
-            <button 
-              type="button" 
-              className="dash-workspace-card-btn"
-              onClick={() => handleOpenWorkspace(ws)}
+        {workspaces.map((ws, idx) => {
+          const rawId = ws.roomId || ws.id || `ws-${idx}`;
+          const displayId = String(rawId).substring(0, 8);
+
+          return (
+            <div 
+              key={rawId} 
+              className="dash-workspace-card"
             >
-              <div className="card-left-edge-cyan" />
-              <div className="ws-card-header">
-                <h4 className="ws-card-title">{ws.name || "Untitled Workspace"}</h4>
-              </div>
-
-              <div className="ws-card-meta">
-                <span>ID: {ws.roomId.substring(0, 8)}...</span>
-              </div>
-
-              <div className="ws-card-footer">
-                <span className="ws-role-pill">
-                  {ws.roomType || 'SANDBOX'}
-                </span>
-                <span className="ws-open-cue">
-                  <span>Open</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-1" />
-                </span>
-              </div>
-            </button>
-
-            <div className="ws-card-buttons">
               <button 
-                type="button"
-                className="ws-action-btn copy"
-                title="Copy Room Link"
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/room/${ws.roomId}`);
-                  toast.success("Workspace link copied!");
-                }}
+                type="button" 
+                className="dash-workspace-card-btn"
+                onClick={() => handleOpenWorkspace(ws)}
               >
-                <Copy className="w-3.5 h-3.5" />
+                <div className="card-left-edge-cyan" />
+                <div className="ws-card-header">
+                  <h4 className="ws-card-title">{ws.name || "Untitled Workspace"}</h4>
+                </div>
+
+                <div className="ws-card-meta">
+                  <span>ID: {displayId}...</span>
+                </div>
+
+                <div className="ws-card-footer">
+                  <span className="ws-role-pill">
+                    {ws.roomType || 'SANDBOX'}
+                  </span>
+                  <span className="ws-open-cue">
+                    <span>Open</span>
+                    <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                  </span>
+                </div>
               </button>
-              <button 
-                type="button"
-                className="ws-action-btn delete"
-                title="Delete Workspace"
-                onClick={() => {
-                  setDeleteTargetId(ws.roomId);
-                  setIsDeleteModalOpen(true);
-                }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+
+              <div className="ws-card-buttons">
+                <button 
+                  type="button"
+                  className="ws-action-btn copy"
+                  title="Copy Room Link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/room/${rawId}`);
+                    toast.success("Workspace link copied!");
+                  }}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  type="button"
+                  className="ws-action-btn delete"
+                  title="Delete Workspace"
+                  onClick={() => {
+                    setDeleteTargetId(rawId);
+                    setIsDeleteModalOpen(true);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

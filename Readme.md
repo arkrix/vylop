@@ -28,7 +28,7 @@ Before running Vylop locally, make sure the following software is installed:
 | **PostgreSQL**                 | 14 or higher               |
 | **Apache Maven**               | 3.9 or higher              |
 | **Git**                        | Latest recommended version |
-| **Docker & Docker Compose**    | Optional                   |
+| **Docker & Docker Compose**    | Recommended                |
 
 You will also need:
 
@@ -55,6 +55,29 @@ git clone https://github.com/your-username/vylop.git
 cd vylop
 ```
 
+### Option A: Quick Start with Docker (Recommended)
+
+Run the entire application stack: PostgreSQL database, Piston sandbox execution
+engine, Spring Boot server, and React/Nginx web application with a single command:
+
+```bash
+docker compose up --build -d
+```
+
+#### Services & Port Mappings
+
+| **Service**          | **Container**    | **Host Endpoint**       | **Description**                          |
+| -------------------- | ---------------- | ----------------------- | ---------------------------------------- |
+| **Web App**          | `vylop-web`      | `http://localhost:3000` | React SPA served via Nginx reverse proxy |
+| **API & WebSockets** | `vylop-server`   | `http://localhost:8080` | Spring Boot application                  |
+| **Code Execution**   | `vylop-piston`   | `http://localhost:2000` | Isolated Piston sandbox runtime          |
+| **Database**         | `vylop-postgres` | `localhost:5432`        | PostgreSQL database instance             |
+
+Once the containers are up and healthy, open **`http://localhost:3000`** in
+your browser.
+
+### Option B: Manual Local Setup
+
 ### 2. Set Up PostgreSQL
 
 Create a PostgreSQL database for Vylop:
@@ -63,19 +86,18 @@ Create a PostgreSQL database for Vylop:
 CREATE DATABASE vylop_db;
 ```
 
-Make sure PostgreSQL is running before starting the server.
+Ensure PostgreSQL is running locally on port `5432` before starting the server.
 
 ### 3. Configure the Server
 
-Navigate to the server:
+Navigate to the server directory:
 
 ```bash
 cd server
 ```
 
-Configure the database connection and application secrets through your Spring Boot configuration.
-
-For example:
+Configure your database connection, JWT secret, and execution sandbox endpoint
+in your Spring Boot application configuration or environment variables:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/vylop_db
@@ -83,12 +105,14 @@ spring.datasource.username=your_postgres_user
 spring.datasource.password=your_postgres_password
 
 jwt.secret=your_jwt_secret_key_here
+
+# Code execution sandbox endpoint
+piston.api.url=http://localhost:2000/api/v2
 ```
 
-Environment variables can also be used where supported by the application configuration.
-
 > [!WARNING]
-> The values above are examples only. Replace them with your local configuration and keep secrets outside version control.
+> The values above are examples only. Replace them with your local configuration
+> and keep secrets outside version control.
 
 ### 4. Build the Server
 
@@ -114,7 +138,7 @@ http://localhost:8080
 
 ### 6. Start the Web
 
-Open a **new terminal** and navigate to the web:
+Open a **new terminal** and navigate to the web directory:
 
 ```bash
 cd web
@@ -126,13 +150,18 @@ Install the required dependencies:
 npm install
 ```
 
-Start the Vite development server:
+When running the Vite development server independently from Nginx, point
+`VITE_API_URL` to your local Spring Boot instance:
 
 ```bash
-npm run dev
+# Windows (PowerShell)
+$env:VITE_API_URL="http://localhost:8080"; npm run dev
+
+# Linux / macOS / Git Bash
+VITE_API_URL="http://localhost:8080" npm run dev
 ```
 
-The web will be available at:
+The Vite development server will start at:
 
 ```text
 http://localhost:5173
@@ -142,14 +171,16 @@ http://localhost:5173
 
 Once both services are running:
 
-1. Open `http://localhost:5173` in your browser.
-2. Verify that the server is running on port `8080`.
-3. Create or join a collaborative session.
-4. Test real-time code editing.
-5. Test workspace and session functionality.
+1. Open `http://localhost:5173` (Vite development server) or
+   `http://localhost:3000` (Docker container) in your browser.
+2. Verify that the server is responding on port `8080`.
+3. Create or join a collaborative workspace session.
+4. Test real-time code editing and syntax highlighting.
+5. Execute a script to confirm sandbox container output.
 
 > [!TIP]
-> Run the web and server in separate terminal sessions so you can easily monitor logs from both services during development.
+> When running without Docker, ensure an instance of Piston is available at
+> `http://localhost:2000` if you plan to test multi-language code execution.
 
 ---
 
@@ -179,7 +210,12 @@ Vylop supports complete project workspaces rather than limiting sessions to a si
 
 ### Multi-Language Code Execution
 
-Run code directly from the collaborative workspace.
+Run multi-file workspaces directly inside an isolated, containerized sandbox runtime powered by **Piston**.
+
+* Secure, sandboxed execution with time and memory constraints
+* Custom stdin input and automated test case runner support
+* Multi-file project compilation and execution
+* Real-time stdout, stderr, and compiler diagnostics feedback
 
 Supported languages include:
 
@@ -187,9 +223,12 @@ Supported languages include:
 * **Python**
 * **C++**
 * **JavaScript**
+
+**Editor Syntax & Snippet Support:**
 * **TypeScript**
 * **Go**
 * **Rust**
+*(Sandbox runtime execution for Go, Rust, and TypeScript will be enabled in an upcoming package release.)*
 
 ### One-Click Workspace Export
 
@@ -243,21 +282,23 @@ Developers who prefer Vim-style editing can enable Vim keybindings directly insi
 
 | Layer                       | Technology          | Purpose                           |
 | --------------------------- | ------------------- | --------------------------------- |
-| **Web**                | React 18            | User interface                    |
-| **Build Tool**              | Vite                | Web development and bundling |
+| **Web**                     | React 18            | User interface                    |
+| **Build Tool**              | Vite                | Web development and bundling      |
+| **Reverse Proxy**           | Nginx               | SPA static serving & API proxying |
 | **Editor**                  | Monaco Editor       | Code editing                      |
 | **Collaboration**           | Yjs                 | CRDT-based synchronization        |
 | **Editor Binding**          | y-monaco            | Yjs ↔ Monaco integration          |
 | **Styling**                 | Tailwind CSS        | UI styling                        |
 | **Real-Time Communication** | WebSockets / STOMP  | Real-time messaging               |
 | **WebSocket Client**        | SockJS / STOMP.js   | Client-side connection management |
-| **Server**                 | Java 17             | Server runtime                   |
+| **Server**                  | Java 17             | Server runtime                    |
 | **Framework**               | Spring Boot 3       | REST and application services     |
 | **Security**                | Spring Security     | Authentication and authorization  |
 | **Authentication**          | JWT / Google OAuth2 | User authentication               |
+| **Execution Engine**        | Piston (Sandbox)    | Multi-language isolated runtime   |
 | **Database**                | PostgreSQL          | Persistent data storage           |
-| **Build System**            | Maven               | Server dependency management     |
-| **Containerization**        | Docker              | Application containerization      |
+| **Build System**            | Maven               | Server dependency management      |
+| **Containerization**        | Docker & Compose    | Multi-container orchestration     |
 | **Deployment**              | Render              | Cloud deployment                  |
 
 ---

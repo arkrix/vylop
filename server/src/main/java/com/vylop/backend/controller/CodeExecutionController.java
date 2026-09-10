@@ -13,16 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/execute")
-@CrossOrigin(origins = {"http://localhost:5173", "https://vylop-frontend.onrender.com"})
 public class CodeExecutionController {
 
     private final CodeExecutionService executionService;
 
-    // Memory-Based Rate Limiter: Stores the IP address and the timestamp of their last execution
+    // Memory-Based Rate Limiter: Stores client IP and timestamp of last execution
     private final Map<String, Long> requestCounts = new ConcurrentHashMap<>();
     
-    // Cooldown period in milliseconds (3000ms = 3 seconds)
-    private static final long COOLDOWN_TIME = 3000;
+    // Cooldown period in milliseconds (2000ms = 2 seconds)
+    private static final long COOLDOWN_TIME = 2000;
     private static final int MAX_CODE_LENGTH = 65536; // 64 KB size limit
 
     public CodeExecutionController(CodeExecutionService executionService) {
@@ -68,7 +67,7 @@ public class CodeExecutionController {
 
         String mainFile = payload.getMainFile() != null ? payload.getMainFile() : "Main.java";
         
-        // 3. Execute via Cloud Sandbox API (passing all 6 parameters including envVars)
+        // 3. Execute via Local Piston Sandbox API
         String result = executionService.executeCode(
                 payload.getLanguage(),
                 payload.getCode(),
@@ -77,6 +76,7 @@ public class CodeExecutionController {
                 payload.getFiles(),
                 payload.getEnvVars()
         );
+
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_PLAIN)
                 .body(result);

@@ -17,6 +17,18 @@ services:
       timeout: 5s
       retries: 5
 
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: vylop-piston
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "2000:2000"
+    volumes:
+      - piston_packages:/piston/packages
+    tmpfs:
+      - /tmp:exec
+
   server:
     build:
       context: ./server
@@ -26,6 +38,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      piston:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -34,6 +48,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      PISTON_URL: http://piston:2000/api/v2
 
   web:
     build:
@@ -48,3 +63,4 @@ services:
 
 volumes:
   postgres_data:
+  piston_packages:

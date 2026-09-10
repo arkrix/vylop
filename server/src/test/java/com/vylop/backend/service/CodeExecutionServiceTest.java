@@ -21,9 +21,6 @@ class CodeExecutionServiceTest {
 
     @Test
     void defaultsToMainWhenNoClassFound() {
-        // Deliberately avoids the literal word "class" anywhere, including in comments,
-        // since the fallback regex pattern-matches raw text and cannot distinguish
-        // real code from a comment.
         String code = "// nothing here but a stray comment and some whitespace";
         assertThat(service.extractJavaClassName(code)).isEqualTo("Main");
     }
