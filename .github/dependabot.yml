@@ -10,6 +10,9 @@ updates:
     labels:
       - "dependencies"
       - "backend"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       backend-dependencies:
         patterns:
@@ -26,6 +29,9 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-dependencies:
         patterns:
@@ -41,6 +47,9 @@ updates:
     labels:
       - "dependencies"
       - "ci/cd"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       actions-dependencies:
         patterns:
