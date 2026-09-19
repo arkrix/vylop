@@ -40,7 +40,7 @@ public class EditorController {
         response.put(KEY_USERNAME, username);
         response.put("users", userList);
 
-        messagingTemplate.convertAndSend("/topic/users/" + roomId, response);
+        messagingTemplate.convertAndSend("/topic/users/" + roomId, (Object) response);
     }
 
     @MessageMapping("/room/{roomId}/join")
@@ -126,26 +126,26 @@ public class EditorController {
 
     @MessageMapping("/chat/{roomId}")
     public void sendChat(@DestinationVariable String roomId, @Payload Map<String, Object> message) {
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, (Object) message);
     }
 
     @MessageMapping("/typing/{roomId}")
     public void sendTyping(@DestinationVariable String roomId, @Payload Map<String, Object> typing) {
-        messagingTemplate.convertAndSend("/topic/typing/" + roomId, typing);
+        messagingTemplate.convertAndSend("/topic/typing/" + roomId, (Object) typing);
     }
 
     @MessageMapping("/cursor/{roomId}")
     public void sendCursor(@DestinationVariable String roomId, @Payload Map<String, Object> cursor) {
-        messagingTemplate.convertAndSend("/topic/cursor/" + roomId, cursor);
+        messagingTemplate.convertAndSend("/topic/cursor/" + roomId, (Object) cursor);
     }
 
     @MessageMapping("/code/{roomId}")
     public void sendCodeMeta(@DestinationVariable String roomId, @Payload Map<String, Object> codeMeta) {
-        messagingTemplate.convertAndSend("/topic/code/" + roomId, codeMeta);
+        messagingTemplate.convertAndSend("/topic/code/" + roomId, (Object) codeMeta);
     }
 
     @MessageMapping("/yjs/{roomId}")
     public void syncYjs(@DestinationVariable String roomId, @Payload Map<String, Object> yjsUpdate) {
-        messagingTemplate.convertAndSend("/topic/yjs/" + roomId, yjsUpdate);
+        messagingTemplate.convertAndSend("/topic/yjs/" + roomId, (Object) yjsUpdate);
     }
 }

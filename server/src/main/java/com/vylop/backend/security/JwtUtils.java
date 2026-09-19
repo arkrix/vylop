@@ -2,15 +2,15 @@ package com.vylop.backend.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.time.Instant;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -41,14 +41,11 @@ public class JwtUtils {
         Instant now = Instant.now();
         Instant expiry = now.plusMillis(jwtExpiration);
 
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(Claims.SUBJECT, username);
-        claims.put(Claims.ISSUED_AT, now.getEpochSecond());
-        claims.put(Claims.EXPIRATION, expiry.getEpochSecond());
-
         return Jwts.builder()
-                .setClaims(claims)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .subject(username)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -56,14 +53,12 @@ public class JwtUtils {
         Instant now = Instant.now();
         Instant expiry = now.plusMillis(jwtExpiration);
 
-        Map<String, Object> claims = new HashMap<>(extraClaims);
-        claims.put(Claims.SUBJECT, userDetails.getUsername());
-        claims.put(Claims.ISSUED_AT, now.getEpochSecond());
-        claims.put(Claims.EXPIRATION, expiry.getEpochSecond());
-
         return Jwts.builder()
-                .setClaims(claims)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .claims(extraClaims)
+                .subject(userDetails.getUsername())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -77,23 +72,19 @@ public class JwtUtils {
     }
 
     private Instant extractExpiration(String token) {
-        Claims claims = extractAllClaims(token);
-        Object exp = claims.get(Claims.EXPIRATION);
-        if (exp instanceof Number number) {
-            return Instant.ofEpochSecond(number.longValue());
-        }
-        return Instant.MIN;
+        Date expiration = extractClaim(token, Claims::getExpiration);
+        return expiration != null ? expiration.toInstant() : Instant.MIN;
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
-    private Key getSigningKey() {
+    private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }

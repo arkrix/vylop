@@ -42,9 +42,9 @@ class EditorControllerTest {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> captureLatestBroadcast() {
-        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/users/" + roomId), captor.capture());
-        return captor.getValue();
+        return (Map<String, Object>) captor.getValue();
     }
 
     private void joinUser(String username) {
@@ -167,22 +167,22 @@ class EditorControllerTest {
     void relayEndpoints_broadcastToExpectedTopics() {
         Map<String, Object> message = Map.of("text", "hello");
         editorController.sendChat(roomId, message);
-        verify(messagingTemplate).convertAndSend("/topic/chat/" + roomId, message);
+        verify(messagingTemplate).convertAndSend(eq("/topic/chat/" + roomId), eq((Object) message));
 
         Map<String, Object> typing = Map.of("typing", true);
         editorController.sendTyping(roomId, typing);
-        verify(messagingTemplate).convertAndSend("/topic/typing/" + roomId, typing);
+        verify(messagingTemplate).convertAndSend(eq("/topic/typing/" + roomId), eq((Object) typing));
 
         Map<String, Object> cursor = Map.of("x", 10, "y", 20);
         editorController.sendCursor(roomId, cursor);
-        verify(messagingTemplate).convertAndSend("/topic/cursor/" + roomId, cursor);
+        verify(messagingTemplate).convertAndSend(eq("/topic/cursor/" + roomId), eq((Object) cursor));
 
         Map<String, Object> code = Map.of("code", "print(1)");
         editorController.sendCodeMeta(roomId, code);
-        verify(messagingTemplate).convertAndSend("/topic/code/" + roomId, code);
+        verify(messagingTemplate).convertAndSend(eq("/topic/code/" + roomId), eq((Object) code));
 
         Map<String, Object> yjs = Map.of("update", "binary");
         editorController.syncYjs(roomId, yjs);
-        verify(messagingTemplate).convertAndSend("/topic/yjs/" + roomId, yjs);
+        verify(messagingTemplate).convertAndSend(eq("/topic/yjs/" + roomId), eq((Object) yjs));
     }
 }
