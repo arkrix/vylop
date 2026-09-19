@@ -1,7 +1,5 @@
-package com.vylop.backend.config;
+package com.vylop.backend.security;
 
-import com.vylop.backend.security.CustomUserDetailsService;
-import com.vylop.backend.security.JwtUtils;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;

@@ -1,6 +1,7 @@
 package com.vylop.backend.config;
 
-import com.vylop.backend.security.WebSocketAuthInterceptor;
+import com.vylop.backend.security.WebSocketRoleAuthorizationInterceptor;
+import com.vylop.backend.security.WebSocketSecurityInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -12,31 +13,32 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final WebSocketSecurityInterceptor securityInterceptor;
+    private final WebSocketRoleAuthorizationInterceptor roleAuthorizationInterceptor;
 
-    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor) {
-        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+    public WebSocketConfig(WebSocketSecurityInterceptor securityInterceptor,
+                           WebSocketRoleAuthorizationInterceptor roleAuthorizationInterceptor) {
+        this.securityInterceptor = securityInterceptor;
+        this.roleAuthorizationInterceptor = roleAuthorizationInterceptor;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // This is the URL: http://localhost:8080/ws
+        // http://localhost:8080/ws
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // Allow React to connect
-                .withSockJS(); // Enable fallback options
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Messages sent TO the server start with /app
         registry.setApplicationDestinationPrefixes("/app");
-        
-        // Messages sent FROM the server to clients start with /topic
         registry.enableSimpleBroker("/topic");
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(webSocketAuthInterceptor);
+        // Authenticate the user from JWT, then check room-level role permissions
+        registration.interceptors(securityInterceptor, roleAuthorizationInterceptor);
     }
 }

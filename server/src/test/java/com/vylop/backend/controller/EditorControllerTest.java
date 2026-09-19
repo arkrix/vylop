@@ -1,5 +1,6 @@
 package com.vylop.backend.controller;
 
+import com.vylop.backend.service.RoomService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +24,14 @@ class EditorControllerTest {
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
+    private RoomService roomService;
     private EditorController editorController;
     private String roomId;
 
     @BeforeEach
     void setUp() {
-        editorController = new EditorController(messagingTemplate);
+        roomService = new RoomService();
+        editorController = new EditorController(messagingTemplate, roomService);
         roomId = "test-room-" + System.nanoTime();
     }
 
